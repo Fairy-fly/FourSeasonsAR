@@ -1,0 +1,11 @@
+/UnityProject/[Ll]ibrary/
+/UnityProject/[Tt]emp/
+/UnityProject/[Ll]ogs/
+/UnityProject/[Oo]bj/
+/UnityProject/UserSettings/
+/UnityProject/.utmp/
+/UnityProject/.vsconfig
+/UnityProject/*.csproj
+/UnityProject/*.sln*
+/reports/*.log
+/builds/
