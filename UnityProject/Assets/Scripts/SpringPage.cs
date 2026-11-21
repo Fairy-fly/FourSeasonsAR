@@ -3,7 +3,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
-public sealed class SpringPage : MonoBehaviour
+public sealed partial class SpringPage : MonoBehaviour
 {
     public SpringVisit visit;
     public Texture2D cover;
@@ -54,6 +54,7 @@ public sealed class SpringPage : MonoBehaviour
         Blossom(Box(start,"樱印",.855f,.5f,25,25));
         MakeButton(start,startSurface,visit.Begin);
         homeStatus = Label(Bounds(heading,"启动提示",.05f,.002f,.95f,.075f),"",17,Ink);
+        AlbumButton(heading,"四季花册",.70f,.94f,.95f,.99f,OpenAlbum);
 
         var scan = Bounds(safe,"扫描",0,0,1,1);
         scanner = scan.gameObject;
@@ -96,6 +97,7 @@ public sealed class SpringPage : MonoBehaviour
         Ornament(Bounds(slip,"花钿",.32f,.42f,.68f,.51f));
         storyText = Label(Bounds(slip,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
         story = slip.gameObject;
+        BuildAlbum(scan);
         ShowScanner(false);
         UpdateLayout();
     }
@@ -118,6 +120,8 @@ public sealed class SpringPage : MonoBehaviour
         coverLayer.SetActive(!scanning);
         home.SetActive(!scanning);
         scanner.SetActive(scanning);
+        album.gameObject.SetActive(false);
+        announcement.transform.parent.gameObject.SetActive(false);
     }
 
     public void SetTracking(bool visible, bool showStory, bool sessionReady)
@@ -134,6 +138,8 @@ public sealed class SpringPage : MonoBehaviour
     void Update()
     {
         UpdateLayout();
+        if (announcement.transform.parent.gameObject.activeSelf && Time.unscaledTime >= announcementUntil)
+            announcement.transform.parent.gameObject.SetActive(false);
         if (scanner.activeSelf)
             guides.alpha = Mathf.MoveTowards(guides.alpha, tracked ? 0 : 1, Time.unscaledDeltaTime * 6);
     }

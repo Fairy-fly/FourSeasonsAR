@@ -54,7 +54,7 @@ public static class SpringSample
                 throw new BuildFailedException("封面适配验证失败");
         }
         Debug.Log($"Spring portrait checks passed: {art.width}x{art.height}, 9:16 / 9:20 / 9:21");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.3.1");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.4");
     }
 
     static void CheckCardSwitch()

@@ -13,7 +13,9 @@ $env:TEMP = Join-Path $CacheRoot 'AR-InstallTemp'
 $env:TMP = $env:TEMP
 $env:GRADLE_USER_HOME = Join-Path $CacheRoot 'AR-Gradle'
 $env:UPM_CACHE_ROOT = Join-Path $CacheRoot 'AR-UPMCache'
-foreach ($dir in @($env:TEMP, $env:GRADLE_USER_HOME, $env:UPM_CACHE_ROOT)) {
+$env:BEE_CACHE_DIRECTORY = Join-Path $CacheRoot 'AR-Bee'
+$env:DOTNET_PROCESSOR_COUNT = '2'
+foreach ($dir in @($env:TEMP, $env:GRADLE_USER_HOME, $env:UPM_CACHE_ROOT, $env:BEE_CACHE_DIRECTORY)) {
     [IO.Directory]::CreateDirectory($dir) | Out-Null
 }
 $settings = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'

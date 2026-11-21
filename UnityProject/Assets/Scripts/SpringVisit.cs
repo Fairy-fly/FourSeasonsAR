@@ -22,6 +22,8 @@ public sealed class SpringVisit : MonoBehaviour
     readonly CardFocus focus = new();
     bool starting;
     bool scanning;
+    public bool CanOpenAlbum => !starting && !scanning;
+    public SeasonAlbum Album { get; set; } = new SeasonAlbum();
     float storyUntil;
 
     void Awake()
@@ -86,6 +88,7 @@ public sealed class SpringVisit : MonoBehaviour
 
     void ClearPresentation()
     {
+        page.HideAnnouncement();
         storyUntil = 0;
         page.SetTracking(false, false, false);
         if (activeSpirit)
@@ -119,6 +122,7 @@ public sealed class SpringVisit : MonoBehaviour
             ClearPresentation();
             if (focus.State != TrackingState.Tracking) return;
             activeSpirit = Instantiate(byReference[target.referenceImage.name], target.transform);
+            if (Album.Collect(activeSpirit.referenceName)) page.AnnounceCollection(activeSpirit);
         }
         activeSpirit.Track(focus.State, limitedGrace);
     }
