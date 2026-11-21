@@ -17,6 +17,7 @@ public static class SpringSample
     public static void BuildApk()
     {
         CheckTrackingPolicy();
+        CheckCardSwitch();
         if (!File.Exists(Scene)) { CreateScene(); ConfigureSeasons(); }
         var scene = EditorSceneManager.OpenScene(Scene);
         var visit = Object.FindAnyObjectByType<SpringVisit>();
@@ -53,7 +54,36 @@ public static class SpringSample
                 throw new BuildFailedException("封面适配验证失败");
         }
         Debug.Log($"Spring portrait checks passed: {art.width}x{art.height}, 9:16 / 9:20 / 9:21");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.3");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.3.1");
+    }
+
+    static void CheckCardSwitch()
+    {
+        var focus = new CardFocus();
+        var cards = new[] { new TrackableId(1, 1), new TrackableId(2, 1), new TrackableId(3, 1), new TrackableId(4, 1) };
+        foreach (var card in cards)
+        {
+            focus.Observe(card, CardObservation.FromMethod(1));
+            focus.FinishChanges();
+            if (focus.Current != card) throw new BuildFailedException("新卡未取得显示权");
+            // The provider can repeat full updates for previously acquired targets.
+            foreach (var prior in cards)
+                if (prior.subId1 < card.subId1) focus.Observe(prior, TrackingState.Tracking);
+            focus.FinishChanges();
+            if (focus.Current != card) throw new BuildFailedException("旧卡重复更新抢占了角色");
+        }
+        focus.Observe(cards[0], CardObservation.FromMethod(2));
+        focus.Observe(cards[3], CardObservation.FromMethod(2));
+        focus.FinishChanges();
+        if (focus.State != TrackingState.Limited) throw new BuildFailedException("旧姿态被视为直接识别");
+        focus.Observe(cards[0], CardObservation.FromMethod(1));
+        focus.Remove(cards[3]);
+        focus.FinishChanges();
+        if (focus.Current != cards[0]) throw new BuildFailedException("春卡重新识别失败");
+        focus.Remove(cards[0]);
+        focus.FinishChanges();
+        if (focus.Current.HasValue) throw new BuildFailedException("移除后仍存在当前目标");
+        Debug.Log("Season handoff regression passed");
     }
 
     static void CheckTrackingPolicy()

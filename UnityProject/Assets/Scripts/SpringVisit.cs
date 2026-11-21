@@ -13,12 +13,13 @@ public sealed class SpringVisit : MonoBehaviour
     public ARTrackedImageManager images;
     public SpringSpirit[] characters;
     readonly Dictionary<string, SpringSpirit> byReference = new();
-    SpringSpirit storyOwner;
+    SpringSpirit activeSpirit;
     public SpringPage page;
     public Camera arCamera;
     [Min(0)] public float limitedGrace = .35f;
 
-    readonly Dictionary<TrackableId, SpringSpirit> instances = new();
+    readonly Dictionary<TrackableId, ARTrackedImage> targets = new();
+    readonly CardFocus focus = new();
     bool starting;
     bool scanning;
     float storyUntil;
@@ -77,65 +78,79 @@ public sealed class SpringVisit : MonoBehaviour
         scanning = false;
         images.gameObject.SetActive(false);
         session.gameObject.SetActive(false);
-        foreach (var spirit in instances.Values) if (spirit) Destroy(spirit.gameObject);
-        instances.Clear();
-        storyUntil = 0;
-        storyOwner = null;
+        targets.Clear();
+        focus.Clear();
+        ClearPresentation();
         page.ShowScanner(false);
+    }
+
+    void ClearPresentation()
+    {
+        storyUntil = 0;
+        page.SetTracking(false, false, false);
+        if (activeSpirit)
+        {
+            activeSpirit.gameObject.SetActive(false);
+            Destroy(activeSpirit.gameObject);
+        }
+        activeSpirit = null;
     }
 
     void Changed(ARTrackablesChangedEventArgs<ARTrackedImage> changes)
     {
+        if (!scanning) return;
         foreach (var item in changes.removed)
-            if (instances.Remove(item.Key, out var spirit) && spirit)
-            {
-                spirit.gameObject.SetActive(false);
-                Destroy(spirit.gameObject);
-            }
-        foreach (var image in changes.added) Apply(image);
-        foreach (var image in changes.updated) Apply(image);
+        {
+            targets.Remove(item.Key);
+            focus.Remove(item.Key);
+        }
+        foreach (var image in changes.added) Observe(image);
+        foreach (var image in changes.updated) Observe(image);
+        focus.FinishChanges();
+
+        if (focus.Current is not TrackableId id || !targets.TryGetValue(id, out var target) || !target)
+        {
+            if (activeSpirit || storyUntil != 0) ClearPresentation();
+            return;
+        }
+        if (!activeSpirit || activeSpirit.transform.parent != target.transform ||
+            activeSpirit.referenceName != target.referenceImage.name)
+        {
+            ClearPresentation();
+            if (focus.State != TrackingState.Tracking) return;
+            activeSpirit = Instantiate(byReference[target.referenceImage.name], target.transform);
+        }
+        activeSpirit.Track(focus.State, limitedGrace);
     }
 
-    void Apply(ARTrackedImage image)
+    void Observe(ARTrackedImage image)
     {
-        if (!scanning || !byReference.TryGetValue(image.referenceImage.name, out var prefab)) return;
-        instances.TryGetValue(image.trackableId, out var spirit);
-        if (spirit && spirit.referenceName != prefab.referenceName)
+        if (!byReference.ContainsKey(image.referenceImage.name))
         {
-            spirit.gameObject.SetActive(false);
-            Destroy(spirit.gameObject);
-            instances.Remove(image.trackableId);
-            spirit = null;
+            focus.Remove(image.trackableId);
+            targets.Remove(image.trackableId);
+            return;
         }
-        if (!spirit)
-        {
-            if (image.trackingState != TrackingState.Tracking) return;
-            spirit = Instantiate(prefab, image.transform);
-            instances[image.trackableId] = spirit;
-            Debug.Log("Season detected " + prefab.referenceName + " " + image.trackableId);
-        }
-        spirit.Track(image.trackingState, limitedGrace);
+        targets[image.trackableId] = image;
+        focus.Observe(image.trackableId, CardObservation.Read(session, image));
     }
 
     void Update()
     {
         if (!scanning) return;
-        bool visible = false;
-        foreach (var spirit in instances.Values)
-            if (spirit && spirit.gameObject.activeSelf) visible = true;
+        bool visible = activeSpirit && activeSpirit.gameObject.activeInHierarchy;
         var pointer = Pointer.current;
         if (visible && pointer != null && pointer.press.wasPressedThisFrame &&
             !page.IsBackButton(pointer.position.ReadValue()) &&
             Physics.Raycast(arCamera.ScreenPointToRay(pointer.position.ReadValue()), out var hit) &&
-            hit.collider.GetComponentInParent<SpringSpirit>() is SpringSpirit selected)
+            hit.collider.GetComponentInParent<SpringSpirit>() == activeSpirit)
         {
-            selected.Blossom();
-            storyOwner = selected;
-            page.SetStory(selected);
+            activeSpirit.Blossom();
+            page.SetStory(activeSpirit);
             storyUntil = Time.unscaledTime + 5;
-            Debug.Log("Season tapped " + selected.referenceName);
+            Debug.Log("Season tapped " + activeSpirit.referenceName);
         }
-        if (!storyOwner || !storyOwner.gameObject.activeInHierarchy) storyUntil = 0;
+        if (!visible) storyUntil = 0;
         page.SetTracking(visible, Time.unscaledTime < storyUntil, ARSession.state == ARSessionState.SessionTracking);
     }
 }
