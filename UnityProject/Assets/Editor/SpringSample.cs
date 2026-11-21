@@ -20,12 +20,24 @@ public static class SpringSample
         if (!File.Exists(Scene)) CreateScene();
         var scene = EditorSceneManager.OpenScene(Scene);
         var visit = Object.FindAnyObjectByType<SpringVisit>();
-        if (!visit || !visit.page || !visit.page.cover || !visit.prefab || !visit.prefab.portrait.sprite ||
+        if (!visit || !visit.page || !visit.page.cover || !visit.page.title || !visit.page.scanButton || !visit.page.storyCard || !visit.prefab || !visit.prefab.portrait.sprite ||
             visit.images.referenceLibrary is not XRReferenceImageLibrary library ||
             library.count != 1 || library[0].name != SpringVisit.ReferenceName ||
             Mathf.Abs(library[0].width - .080f) > .0001f)
             throw new BuildFailedException("春季场景或识别图库配置不完整");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-Spring");
+        var art = visit.page.cover;
+        float aspect = (float)art.width / art.height;
+        if (Mathf.Abs(aspect - 841f / 1870) > .002f)
+            throw new BuildFailedException("导入后的封面比例发生变化");
+        foreach (float screen in new[] {9f/16, 9f/20, 9f/21})
+        {
+            Rect uv = SpringPage.CoverUV(screen, aspect);
+            if (Mathf.Abs(aspect * uv.width / uv.height - screen) > .0001f ||
+                uv.xMin < 0 || uv.xMax > 1.0001f || uv.yMin < 0 || uv.yMax > 1.0001f)
+                throw new BuildFailedException("封面适配验证失败");
+        }
+        Debug.Log($"Spring portrait checks passed: {art.width}x{art.height}, 9:16 / 9:20 / 9:21");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-Spring-UI");
     }
 
     static void CheckTrackingPolicy()
@@ -71,7 +83,10 @@ public static class SpringSample
         var visit = main.AddComponent<SpringVisit>();
         visit.page = main.AddComponent<SpringPage>();
         visit.page.visit = visit;
-        visit.page.cover = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "cover.jpg");
+        visit.page.cover = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_cover_portrait.png");
+        visit.page.title = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_title.png");
+        visit.page.scanButton = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_start.png");
+        visit.page.storyCard = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_story.png");
         visit.images = manager;
         visit.arCamera = origin.Camera;
         visit.session = session;

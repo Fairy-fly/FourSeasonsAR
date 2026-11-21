@@ -19,7 +19,6 @@ public sealed class SpringVisit : MonoBehaviour
     readonly Dictionary<TrackableId, SpringSpirit> instances = new();
     bool starting;
     bool scanning;
-    string description = "";
     float storyUntil;
 
     void OnEnable() => images.trackablesChanged.AddListener(Changed);
@@ -106,15 +105,15 @@ public sealed class SpringVisit : MonoBehaviour
             if (spirit && spirit.gameObject.activeSelf) visible = true;
         var pointer = Pointer.current;
         if (visible && pointer != null && pointer.press.wasPressedThisFrame &&
+            !page.IsBackButton(pointer.position.ReadValue()) &&
             Physics.Raycast(arCamera.ScreenPointToRay(pointer.position.ReadValue()), out var hit) &&
             hit.collider.GetComponentInParent<SpringSpirit>() is SpringSpirit selected)
         {
             selected.Blossom();
-            description = "她性子软，却总悄悄攒着勇气，把第一缕春风捎给赶路的人。";
             storyUntil = Time.unscaledTime + 5;
             Debug.Log("SpringVisit tapped spring_zhiyi");
         }
-        page.Message(visible ? (Time.unscaledTime < storyUntil ? description : "春知意 · 2.5D　轻触精灵，看樱花绽开")
-            : ARSession.state == ARSessionState.SessionTracking ? "将整张春季测试卡放入画面，保持光线均匀" : "正在定位，请缓慢移动手机…");
+        if (!visible) storyUntil = 0;
+        page.SetTracking(visible, Time.unscaledTime < storyUntil, ARSession.state == ARSessionState.SessionTracking);
     }
 }

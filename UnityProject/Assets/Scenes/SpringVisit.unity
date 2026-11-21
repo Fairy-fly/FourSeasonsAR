@@ -545,7 +545,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpringPage
   visit: {fileID: 1720880502}
-  cover: {fileID: 2800000, guid: 61d666b26828e0f45a8c6a45a7295c6e, type: 3}
+  cover: {fileID: 2800000, guid: 514e87d4291f4e679894738a69e2d3ca, type: 3}
+  title: {fileID: 2800000, guid: 5686366d6b0a43048495863da012cc2d, type: 3}
+  scanButton: {fileID: 2800000, guid: 1d2030011692498ea1d6209e6dd060f1, type: 3}
+  storyCard: {fileID: 2800000, guid: ebfa7736aba041179fe9beca77019b03, type: 3}
 --- !u!114 &1720880502
 MonoBehaviour:
   m_ObjectHideFlags: 0
