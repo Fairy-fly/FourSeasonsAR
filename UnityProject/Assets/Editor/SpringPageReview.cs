@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-1.4-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-1.5-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -87,6 +87,12 @@ public static class SpringPageReview
         try
         {
             visit.Album = new SeasonAlbum(prefix);
+            var events = page.GetComponentInChildren<UnityEngine.EventSystems.EventSystem>();
+            var touch = new UnityEngine.EventSystems.PointerEventData(events);
+            open.OnPointerDown(touch);
+            Check(open.transform.localScale.x < 1,"按下按钮没有反馈");
+            open.OnPointerUp(touch);
+            Check(open.transform.localScale == Vector3.one,"抬起后按钮未复原");
             open.onClick.Invoke();
             Check(count.text.EndsWith("0 / 4") && grid.gameObject.activeInHierarchy,"首次打开花册失败");
             foreach (var character in visit.characters)
@@ -97,6 +103,22 @@ public static class SpringPageReview
                 Check(!detail.gameObject.activeInHierarchy,"未收集的详情被打开");
             }
             Capture(camera,folder,"album-empty");
+            var inset = (RectTransform)safe;
+            var min = inset.anchorMin;
+            var max = inset.anchorMax;
+            inset.anchorMin = new Vector2(0,.025f);
+            inset.anchorMax = new Vector2(1,.95f);
+            var paper = (RectTransform)safe.parent.Find("花册底纸");
+            Canvas.ForceUpdateCanvases();
+            Check(paper.gameObject.activeInHierarchy && paper.rect.size == ((RectTransform)safe.parent).rect.size,
+                "花册底色没有覆盖完整画布");
+            var entrance = grid.GetComponent<FlowerPageEntrance>();
+            entrance.SetProgress(.25f);
+            Check(grid.GetComponent<CanvasGroup>().alpha > 0 && grid.GetComponent<CanvasGroup>().alpha < 1,"花册过渡未生效");
+            entrance.SetProgress(1);
+            Capture(camera,folder,"album-safe-area");
+            inset.anchorMin = min;
+            inset.anchorMax = max;
             int n = 0;
             foreach (var character in visit.characters)
             {

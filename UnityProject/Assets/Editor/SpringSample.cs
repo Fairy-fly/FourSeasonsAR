@@ -54,7 +54,55 @@ public static class SpringSample
                 throw new BuildFailedException("封面适配验证失败");
         }
         Debug.Log($"Spring portrait checks passed: {art.width}x{art.height}, 9:16 / 9:20 / 9:21");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.4");
+        if (visit.characters[0].portrait.sprite.texture.height != 1777 ||
+            Mathf.Abs(visit.characters[0].portrait.sprite.bounds.size.y - .09547f) > .0002f)
+            throw new BuildFailedException("春知意高清立绘尺寸不正确");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.5");
+    }
+
+    public static void ConfigurePolish()
+    {
+        var sprite = LoadSprite("spring_front_hd.png",1777f / (506f / 5300f),new Vector2(.5f,0));
+        var importer = (TextureImporter)AssetImporter.GetAtPath(Art + "spring_front_hd.png");
+        var android = importer.GetPlatformTextureSettings("Android");
+        android.overridden = true;
+        android.maxTextureSize = 2048;
+        android.format = TextureImporterFormat.RGBA32;
+        importer.SetPlatformTextureSettings(android);
+        importer.SaveAndReimport();
+        sprite = AssetDatabase.LoadAssetAtPath<Sprite>(Art + "spring_front_hd.png");
+        const string prefab = "Assets/Prefabs/SpringSpirit.prefab";
+        using (var edit = new PrefabUtility.EditPrefabContentsScope(prefab))
+        {
+            var portrait = edit.prefabContentsRoot.GetComponent<SpringSpirit>().portrait;
+            portrait.sprite = sprite;
+            var hit = portrait.GetComponent<BoxCollider>();
+            var bounds = sprite.bounds;
+            hit.center = bounds.center;
+            hit.size = new Vector3(bounds.size.x,bounds.size.y,.004f);
+        }
+        var target = NamedBuildTarget.Android;
+        Texture2D Icon(string name) => AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "Launcher/" + name + ".png");
+        var legacy = Icon("flower_book");
+        var foreground = Icon("flower_book_foreground");
+        var background = Icon("flower_book_background");
+        if (!legacy || !foreground || !background) throw new BuildFailedException("启动图标素材缺失");
+        var adaptive = UnityEditor.Android.AndroidPlatformIconKind.Adaptive;
+        foreach (var kind in new[] {adaptive, UnityEditor.Android.AndroidPlatformIconKind.Round, UnityEditor.Android.AndroidPlatformIconKind.Legacy})
+        {
+            var slots = PlayerSettings.GetPlatformIcons(target,kind);
+            foreach (var slot in slots)
+            {
+                if (kind == adaptive)
+                {
+                    slot.SetTexture(background,0);
+                    slot.SetTexture(foreground,1);
+                }
+                else slot.SetTexture(legacy);
+            }
+            PlayerSettings.SetPlatformIcons(target,kind,slots);
+        }
+        AssetDatabase.SaveAssets();
     }
 
     static void CheckCardSwitch()

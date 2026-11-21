@@ -38,9 +38,12 @@ public sealed partial class SpringPage : MonoBehaviour
         coverImage = coverLayer.AddComponent<RawImage>();
         coverImage.texture = cover;
         coverImage.raycastTarget = false;
+        albumPaper = Bounds(frame,"花册底纸",0,0,1,1).gameObject;
+        Paint((RectTransform)albumPaper.transform,Parchment);
         safe = Bounds(frame,"安全区域",0,0,1,1);
         var heading = Bounds(safe,"封面",0,0,1,1);
         home = heading.gameObject;
+        home.AddComponent<FlowerPageEntrance>();
         Label(Bounds(heading,"书名",.08f,.80f,.92f,.929f),"四时花旅",82,Ink,brushFont);
         var divider = Bounds(heading,"题签",.26f,.788f,.74f,.808f);
         Ornament(divider);
@@ -58,6 +61,7 @@ public sealed partial class SpringPage : MonoBehaviour
 
         var scan = Bounds(safe,"扫描",0,0,1,1);
         scanner = scan.gameObject;
+        scanner.AddComponent<FlowerPageEntrance>();
         back = Box(scan,"返回封面",0,1,52,52);
         back.anchoredPosition = new Vector2(52,-51);
         MakeButton(back,Surface(back,Glass),visit.Home);
@@ -97,6 +101,7 @@ public sealed partial class SpringPage : MonoBehaviour
         Ornament(Bounds(slip,"花钿",.32f,.42f,.68f,.51f));
         storyText = Label(Bounds(slip,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
         story = slip.gameObject;
+        story.AddComponent<FlowerPageEntrance>();
         BuildAlbum(scan);
         ShowScanner(false);
         UpdateLayout();
@@ -121,6 +126,7 @@ public sealed partial class SpringPage : MonoBehaviour
         home.SetActive(!scanning);
         scanner.SetActive(scanning);
         album.gameObject.SetActive(false);
+        albumPaper.SetActive(false);
         announcement.transform.parent.gameObject.SetActive(false);
     }
 
@@ -241,7 +247,7 @@ public sealed partial class SpringPage : MonoBehaviour
     static void MakeButton(RectTransform rt,Graphic graphic,UnityEngine.Events.UnityAction click)
     {
         graphic.raycastTarget = true;
-        var button = rt.gameObject.AddComponent<Button>();
+        var button = rt.gameObject.AddComponent<FlowerButton>();
         button.targetGraphic = graphic;
         button.onClick.AddListener(click);
     }

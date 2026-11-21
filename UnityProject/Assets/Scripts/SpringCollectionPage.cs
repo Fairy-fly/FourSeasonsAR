@@ -5,6 +5,7 @@ using UnityEngine.Events;
 public sealed partial class SpringPage
 {
     RectTransform album, index, leaf;
+    GameObject albumPaper;
     Text progress, detailName, detailStory, announcement;
     Image detailPortrait;
     float announcementUntil;
@@ -26,8 +27,8 @@ public sealed partial class SpringPage
         announcement = Label(Inset(toast,"提示",4),"",19,Parchment);
 
         album = Bounds(safe,"花册",0,0,1,1);
-        Paint(album,Parchment);
         index = Bounds(album,"目录",0,0,1,1);
+        index.gameObject.AddComponent<FlowerPageEntrance>();
         Label(Bounds(index,"册名",.09f,.82f,.91f,.93f),"四季花册",52,Ink,brushFont);
         Ornament(Bounds(index,"花钿",.23f,.805f,.77f,.826f));
         progress = Label(Bounds(index,"进度",.1f,.748f,.9f,.804f),"",21,Ink);
@@ -54,6 +55,7 @@ public sealed partial class SpringPage
         AlbumButton(index,"返回封面",.30f,.050f,.70f,.118f,() => ShowScanner(false));
 
         leaf = Bounds(album,"角色详情",0,0,1,1);
+        leaf.gameObject.AddComponent<FlowerPageEntrance>();
         detailName = Label(Bounds(leaf,"题名",.07f,.815f,.93f,.94f),"",54,Ink,brushFont);
         Ornament(Bounds(leaf,"花钿",.22f,.80f,.78f,.822f));
         detailPortrait = Portrait(Bounds(leaf,"立绘",.09f,.30f,.91f,.78f));
@@ -97,6 +99,7 @@ public sealed partial class SpringPage
         progress.text = $"已收集  {count} / {entries.Length}";
         home.SetActive(false);
         coverLayer.SetActive(false);
+        albumPaper.SetActive(true);
         album.gameObject.SetActive(true);
         index.gameObject.SetActive(true);
         leaf.gameObject.SetActive(false);

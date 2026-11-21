@@ -82,7 +82,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 163a1b9795ae903458a0ad34018f2a29, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 792d95a6e3a4ed8489b168d86556f7f8, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -111,8 +111,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.04754717, y: 0.095471695, z: 0.004}
-  m_Center: {x: 0, y: 0.047735848, z: 0}
+  m_Size: {x: 0.047547806, y: 0.0954717, z: 0.004}
+  m_Center: {x: 0, y: 0.04773585, z: 0}
 --- !u!1 &3197760524332366162
 GameObject:
   m_ObjectHideFlags: 0
@@ -158,5 +158,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 71e49f3fdb69f2e4da7c889b6c644f5f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpringSpirit
+  season: 0
+  referenceName: spring_zhiyi
+  characterName: "\u6625\u77E5\u610F"
+  excerpt: "\u628A\u7B2C\u4E00\u7F15\u6625\u98CE\u634E\u7ED9\u8D76\u8DEF\u7684\u4EBA\u3002"
   portrait: {fileID: 5317034195229370110}
   petal: {fileID: 21300000, guid: 2ca9c3bc3487b494ea54e8b3230f3ed9, type: 3}
