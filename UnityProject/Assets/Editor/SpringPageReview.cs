@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-1.5-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-1.6-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -49,9 +49,12 @@ public static class SpringPageReview
             guides.alpha = 0;
             var story = safe.Find("扫描/花笺位置").GetChild(0).gameObject;
             if (!story.activeInHierarchy) throw new System.InvalidOperationException("点击后花笺未显示");
+            CheckStoryEntrance(page,story,camera,folder);
+            guides.alpha = 0;
             foreach (var character in page.visit.characters)
             {
                 page.SetStory(character);
+                story.GetComponent<StoryPetalEntrance>().Sample(StoryPetalEntrance.Duration);
                 page.AnnounceCollection(character);
                 Capture(camera,folder,character.referenceName);
             }
@@ -69,6 +72,52 @@ public static class SpringPageReview
             RenderTexture.ReleaseTemporary(target);
         }
         Debug.Log("Spring UI editor review completed");
+    }
+
+    static void CheckStoryEntrance(SpringPage page,GameObject story,Camera camera,string folder)
+    {
+        var entrance = story.GetComponent<StoryPetalEntrance>();
+        var paper = story.transform.Find("笺面").GetComponent<CanvasGroup>();
+        var words = story.transform.Find("笺文").GetComponent<CanvasGroup>();
+        var petals = System.Array.FindAll(story.GetComponentsInChildren<Image>(true),p => p.name == "飞瓣");
+        var character = page.visit.characters[0];
+        void Check(bool ok,string reason)
+        {
+            if (!ok) throw new System.InvalidOperationException(reason);
+        }
+        int VisiblePetals() => System.Array.FindAll(petals,p => p.enabled && p.gameObject.activeInHierarchy).Length;
+        page.SetStory(character);
+        Check(words.alpha == 0 && paper.alpha == 0 && petals.Length == 10,"花笺初始状态错误");
+        entrance.Sample(.07f);
+        Check(VisiblePetals() > 0 && paper.alpha == 0,"花瓣应先于笺面出现");
+        entrance.Sample(.40f);
+        Check(paper.alpha > words.alpha && words.alpha > 0 && paper.alpha < 1,"花笺没有分层渐显");
+        float partial = words.alpha;
+        page.SetStory(character);
+        Check(words.alpha == partial,"连点打断了花笺入场");
+        string frames = Path.GetFullPath("Library/StoryEntranceFrames");
+        Directory.CreateDirectory(frames);
+        for (int i=0; i<=30; i++)
+        {
+            entrance.Sample(i / 25f);
+            Capture(camera,frames,"frame-" + i.ToString("D3"));
+        }
+        Check(paper.alpha == 1 && words.alpha == 1 && VisiblePetals() == 0,"花笺收尾状态错误");
+        page.SetStory(character);
+        entrance.Sample(.22f);
+        Check(VisiblePetals() > 0 && words.alpha == 1 && paper.alpha == 1,"重按时文案闪烁");
+        page.SetTracking(false,false,true);
+        Check(!story.activeSelf && VisiblePetals() == 0,"目标丢失后残留花瓣");
+        page.SetStory(page.visit.characters[1]);
+        page.SetTracking(true,true,true);
+        Check(words.alpha == 0 && paper.alpha == 0,"新角色沿用了旧动画");
+        entrance.Sample(.37f);
+        Capture(camera,folder,"story-gathering");
+        page.ShowScanner(false);
+        Check(!story.activeInHierarchy && VisiblePetals() == 0,"离开扫描后残留花瓣");
+        page.ShowScanner(true);
+        page.SetTracking(true,true,true);
+        Debug.Log("Story petal reveal, repeated tap, target change and scanner exit checks passed");
     }
 
     static void CheckAlbum(SpringPage page,Transform safe,Camera camera,string folder)

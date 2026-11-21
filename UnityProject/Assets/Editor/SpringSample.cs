@@ -57,7 +57,7 @@ public static class SpringSample
         if (visit.characters[0].portrait.sprite.texture.height != 1777 ||
             Mathf.Abs(visit.characters[0].portrait.sprite.bounds.size.y - .09547f) > .0002f)
             throw new BuildFailedException("春知意高清立绘尺寸不正确");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.5");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.6");
     }
 
     public static void ConfigurePolish()

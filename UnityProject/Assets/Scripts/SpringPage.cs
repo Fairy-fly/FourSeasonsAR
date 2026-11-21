@@ -17,6 +17,7 @@ public sealed partial class SpringPage : MonoBehaviour
     RectTransform safe, back;
     CanvasGroup guides;
     Text homeStatus, hint, storyTitle, storyText;
+    StoryPetalEntrance storyEntrance;
     RawImage coverImage;
     Vector2Int lastScreen;
     Rect lastSafe;
@@ -92,16 +93,30 @@ public sealed partial class SpringPage : MonoBehaviour
         Surface(chip,Glass);
         hint = Label(Bounds(chip,"提示文字",.04f,0,.96f,1),"把整张角色卡放入框内",19,Color.white);
         var slip = Fit(scan,"花笺",.065f,.065f,.935f,.236f,2.98f);
-        Surface(slip,Honey,true);
-        Surface(Inset(slip,"笺纸",1.5f),Parchment,true);
-        Surface(Inset(slip,"内框",5),new Color32(224,197,164,255),true);
-        Surface(Inset(slip,"内页",6),Parchment,true);
-        Blossom(Bounds(slip,"折枝樱花",.71f,.59f,1.015f,1.04f),true);
-        storyTitle = Label(Bounds(slip,"人名",.18f,.51f,.82f,.90f),"春知意",38,Ink,brushFont);
-        Ornament(Bounds(slip,"花钿",.32f,.42f,.68f,.51f));
-        storyText = Label(Bounds(slip,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
+        var paper = Bounds(slip,"笺面",0,0,1,1);
+        Surface(paper,Honey,true);
+        Surface(Inset(paper,"笺纸",1.5f),Parchment,true);
+        Surface(Inset(paper,"内框",5),new Color32(224,197,164,255),true);
+        Surface(Inset(paper,"内页",6),Parchment,true);
+        Blossom(Bounds(paper,"折枝樱花",.71f,.59f,1.015f,1.04f),true);
+        Ornament(Bounds(paper,"花钿",.32f,.42f,.68f,.51f));
+        var petals = new Image[10];
+        var spring = System.Array.Find(visit.characters, item => item.referenceName == SpringVisit.ReferenceName);
+        for (int i = 0; i < petals.Length; i++)
+        {
+            float size = 9 + (i % 4)*2;
+            var petal = Box(slip,"飞瓣",.5f,.5f,size,size).gameObject.AddComponent<Image>();
+            petal.sprite = spring.petal;
+            petal.preserveAspect = true;
+            petal.raycastTarget = false;
+            petals[i] = petal;
+        }
+        var words = Bounds(slip,"笺文",0,0,1,1);
+        storyTitle = Label(Bounds(words,"人名",.18f,.51f,.82f,.90f),"春知意",38,Ink,brushFont);
+        storyText = Label(Bounds(words,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
         story = slip.gameObject;
-        story.AddComponent<FlowerPageEntrance>();
+        storyEntrance = story.AddComponent<StoryPetalEntrance>();
+        storyEntrance.Bind(paper.gameObject.AddComponent<CanvasGroup>(),words.gameObject.AddComponent<CanvasGroup>(),petals);
         BuildAlbum(scan);
         ShowScanner(false);
         UpdateLayout();
@@ -111,6 +126,7 @@ public sealed partial class SpringPage : MonoBehaviour
     {
         storyTitle.text = character.characterName;
         storyText.text = character.excerpt;
+        if (story.activeSelf) storyEntrance.OnRetap();
     }
 
     public void Message(string message) => homeStatus.text = message;
@@ -134,7 +150,11 @@ public sealed partial class SpringPage : MonoBehaviour
     {
         tracked = visible;
         bool open = visible && showStory;
-        if (story.activeSelf != open) story.SetActive(open);
+        if (story.activeSelf != open)
+        {
+            if (open) storyEntrance.Open();
+            story.SetActive(open);
+        }
         string tip = sessionReady ? "把整张角色卡放入框内" : "正在定位，请缓慢移动手机";
         if (!visible && hint.text != tip) hint.text = tip;
     }

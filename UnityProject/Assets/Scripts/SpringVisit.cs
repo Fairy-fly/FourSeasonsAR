@@ -151,7 +151,7 @@ public sealed class SpringVisit : MonoBehaviour
         {
             activeSpirit.Blossom();
             page.SetStory(activeSpirit);
-            storyUntil = Time.unscaledTime + 5;
+            storyUntil = Time.unscaledTime + StoryPetalEntrance.Duration + 5;
             Debug.Log("Season tapped " + activeSpirit.referenceName);
         }
         if (!visible) storyUntil = 0;
