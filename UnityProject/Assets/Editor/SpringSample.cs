@@ -20,7 +20,7 @@ public static class SpringSample
         if (!File.Exists(Scene)) CreateScene();
         var scene = EditorSceneManager.OpenScene(Scene);
         var visit = Object.FindAnyObjectByType<SpringVisit>();
-        if (!visit || !visit.page || !visit.page.cover || !visit.page.title || !visit.page.scanButton || !visit.page.storyCard || !visit.prefab || !visit.prefab.portrait.sprite ||
+        if (!visit || !visit.page || !visit.page.cover || !visit.page.brushFont || !visit.page.readingFont || !visit.prefab || !visit.prefab.portrait.sprite ||
             visit.images.referenceLibrary is not XRReferenceImageLibrary library ||
             library.count != 1 || library[0].name != SpringVisit.ReferenceName ||
             Mathf.Abs(library[0].width - .080f) > .0001f)
@@ -37,7 +37,7 @@ public static class SpringSample
                 throw new BuildFailedException("封面适配验证失败");
         }
         Debug.Log($"Spring portrait checks passed: {art.width}x{art.height}, 9:16 / 9:20 / 9:21");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-Spring-UI");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-Spring-1.2");
     }
 
     static void CheckTrackingPolicy()
@@ -84,9 +84,8 @@ public static class SpringSample
         visit.page = main.AddComponent<SpringPage>();
         visit.page.visit = visit;
         visit.page.cover = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_cover_portrait.png");
-        visit.page.title = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_title.png");
-        visit.page.scanButton = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_start.png");
-        visit.page.storyCard = AssetDatabase.LoadAssetAtPath<Texture2D>(Art + "spring_story.png");
+        visit.page.brushFont = AssetDatabase.LoadAssetAtPath<Font>(Art + "Typography/FlowerJourneyBrush.ttf");
+        visit.page.readingFont = AssetDatabase.LoadAssetAtPath<Font>(Art + "Typography/FlowerJourneyText.ttf");
         visit.images = manager;
         visit.arCamera = origin.Camera;
         visit.session = session;

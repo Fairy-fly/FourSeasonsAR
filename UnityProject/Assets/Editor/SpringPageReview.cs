@@ -16,6 +16,7 @@ public static class SpringPageReview
         var frame = (RectTransform)canvas.transform;
         canvas.GetComponent<CanvasScaler>().enabled = false;
         canvas.renderMode = RenderMode.WorldSpace;
+        canvas.scaleFactor = 1080f / 480f;
         frame.sizeDelta = new Vector2(480,1067);
         frame.localScale = Vector3.one;
         frame.position = Vector3.zero;
@@ -31,9 +32,9 @@ public static class SpringPageReview
         camera.transform.position = Vector3.back * 10;
         camera.clearFlags = CameraClearFlags.SolidColor;
         camera.backgroundColor = new Color(.32f,.32f,.33f);
-        camera.targetTexture = RenderTexture.GetTemporary(720,1600,24);
+        camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-1.2-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -45,7 +46,7 @@ public static class SpringPageReview
             var guides = safe.Find("扫描/取景提示").GetComponent<CanvasGroup>();
             // Batch edit mode has no player clock. Capture the completed visual state.
             guides.alpha = 0;
-            var story = safe.Find("扫描/春知意 · 把第一缕春风捎给赶路的人位置").GetChild(0).gameObject;
+            var story = safe.Find("扫描/花笺位置").GetChild(0).gameObject;
             if (!story.activeInHierarchy) throw new System.InvalidOperationException("点击后花笺未显示");
             Capture(camera,folder,"story");
             page.SetTracking(false,false,true);
@@ -72,6 +73,10 @@ public static class SpringPageReview
             if (!mesh || mesh.vertexCount < 3)
                 throw new System.InvalidOperationException("界面网格为空 " + surface.name);
         }
+        foreach (var label in Object.FindObjectsByType<Text>(FindObjectsSortMode.None))
+            foreach (char glyph in label.text)
+                if (!char.IsWhiteSpace(glyph) && !label.font.HasCharacter(glyph))
+                    throw new System.InvalidOperationException("字库缺字 " + glyph + " / " + label.name);
         camera.Render();
         RenderTexture previous = RenderTexture.active;
         var target = camera.targetTexture;

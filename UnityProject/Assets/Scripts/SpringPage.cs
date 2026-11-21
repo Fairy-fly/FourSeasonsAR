@@ -6,20 +6,13 @@ using UnityEngine.UI;
 public sealed class SpringPage : MonoBehaviour
 {
     public SpringVisit visit;
-    public Texture2D cover, title, scanButton, storyCard;
-
-    // Clockwise contours of the artwork in normalized, bottom-left coordinates.
-    static readonly Vector2[] StoryOutline = {
-        new(.005f,.79f), new(.035f,.82f), new(.052f,.90f), new(.69f,.90f),
-        new(.70f,.94f), new(.75f,.93f), new(.81f,.90f), new(.82f,.97f),
-        new(.85f,.99f), new(.88f,.97f), new(.92f,.99f), new(.94f,.96f),
-        new(.95f,.89f), new(.97f,.88f), new(.972f,.82f), new(.99f,.80f),
-        new(.99f,.13f), new(.96f,.095f), new(.942f,.016f), new(.053f,.016f),
-        new(.036f,.084f), new(.005f,.13f)
-    };
+    public Texture2D cover;
+    public Font brushFont, readingFont;
+    static readonly Color Plum = new Color32(103,47,63,255);
+    static readonly Color Honey = new Color32(202,165,121,255);
+    static readonly Color Parchment = new Color32(255,247,232,255);
     static readonly Color Ink = new Color32(97,45,59,255);
     static readonly Color Glass = new Color32(53,40,38,192);
-    Font font;
     GameObject coverLayer, home, scanner, story;
     RectTransform safe, back;
     CanvasGroup guides;
@@ -31,7 +24,6 @@ public sealed class SpringPage : MonoBehaviour
 
     void Awake()
     {
-        font = Font.CreateDynamicFontFromOSFont(new[] {"Noto Serif CJK SC","Noto Sans CJK SC","MiSans","Droid Sans Fallback","Arial"},32);
         var canvas = new GameObject("四时花旅",typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));
         canvas.transform.SetParent(transform,false);
         canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
@@ -49,17 +41,17 @@ public sealed class SpringPage : MonoBehaviour
         safe = Bounds(frame,"安全区域",0,0,1,1);
         var heading = Bounds(safe,"封面",0,0,1,1);
         home = heading.gameObject;
-        var mark = Fit(heading,"四时花旅",.14f,.811f,.86f,.919f,title);
-        mark.gameObject.AddComponent<RawImage>().texture = title;
-        var divider = Bounds(heading,"题签",.24f,.798f,.76f,.801f);
-        Line(divider,0,.40f,.44f,.65f,Ink);
-        Line(divider,.56f,.40f,1,.65f,Ink);
-        var flower = Box(divider,"花印",.5f,.5f,5,5);
-        Paint(flower,Ink);
-        flower.localRotation = Quaternion.Euler(0,0,45);
-        Label(Bounds(heading,"副题",.06f,.760f,.94f,.796f),"春知意 · 2.5D AR 体验",20,Ink);
-        var start = Fit(heading,"开始扫描",.22f,.078f,.78f,.158f,scanButton);
-        var startSurface = Surface(start,Color.white,scanButton);
+        Label(Bounds(heading,"书名",.08f,.80f,.92f,.929f),"四时花旅",82,Ink,brushFont);
+        var divider = Bounds(heading,"题签",.26f,.788f,.74f,.808f);
+        Ornament(divider);
+        Label(Bounds(heading,"副题",.06f,.746f,.94f,.786f),"春知意 · 2.5D AR 体验",20,Ink);
+
+        var start = Fit(heading,"开始扫描",.22f,.078f,.78f,.158f,4.05f);
+        var startSurface = Surface(start,Plum);
+        Surface(Inset(start,"描金",2.6f), Honey);
+        Surface(Inset(start,"漆面",3.6f), Plum);
+        Label(Bounds(start,"按钮文字",.08f,.08f,.81f,.92f),"开始扫描",29,Parchment);
+        Blossom(Box(start,"樱印",.855f,.5f,25,25));
         MakeButton(start,startSurface,visit.Begin);
         homeStatus = Label(Bounds(heading,"启动提示",.05f,.002f,.95f,.075f),"",17,Ink);
 
@@ -94,8 +86,15 @@ public sealed class SpringPage : MonoBehaviour
         var chip = Bounds(overlay,"找卡提示",.17f,.135f,.83f,.185f);
         Surface(chip,Glass);
         hint = Label(Bounds(chip,"提示文字",.04f,0,.96f,1),"把整张春卡放入框内",19,Color.white);
-        var slip = Fit(scan,"春知意 · 把第一缕春风捎给赶路的人",.075f,.069f,.925f,.235f,storyCard);
-        Surface(slip,Color.white,storyCard,StoryOutline);
+        var slip = Fit(scan,"花笺",.065f,.065f,.935f,.236f,2.98f);
+        Surface(slip,Honey,true);
+        Surface(Inset(slip,"笺纸",1.5f),Parchment,true);
+        Surface(Inset(slip,"内框",5),new Color32(224,197,164,255),true);
+        Surface(Inset(slip,"内页",6),Parchment,true);
+        Blossom(Bounds(slip,"折枝樱花",.71f,.59f,1.015f,1.04f),true);
+        Label(Bounds(slip,"人名",.18f,.51f,.82f,.90f),"春知意",38,Ink,brushFont);
+        Ornament(Bounds(slip,"花钿",.32f,.42f,.68f,.51f));
+        Label(Bounds(slip,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
         story = slip.gameObject;
         ShowScanner(false);
         UpdateLayout();
@@ -176,11 +175,11 @@ public sealed class SpringPage : MonoBehaviour
         fit.aspectRatio = ratio;
     }
 
-    static RectTransform Fit(RectTransform parent,string name,float x,float y,float r,float t,Texture texture)
+    static RectTransform Fit(RectTransform parent,string name,float x,float y,float r,float t,float ratio)
     {
         var slot = Bounds(parent,name+"位置",x,y,r,t);
         var art = Bounds(slot,name,0,0,1,1);
-        Aspect(art,(float)texture.width/texture.height);
+        Aspect(art,ratio);
         return art;
     }
 
@@ -194,14 +193,36 @@ public sealed class SpringPage : MonoBehaviour
     static void Line(RectTransform parent,float x,float y,float r,float t,Color color) =>
         Paint(Bounds(parent,"细线",x,y,r,t),color);
 
-    static SpringSurface Surface(RectTransform rt,Color color,Texture texture=null,Vector2[] outline=null)
+    static RectTransform Inset(RectTransform parent,string name,float margin)
+    {
+        var rect=Bounds(parent,name,0,0,1,1);
+        rect.offsetMin = Vector2.one*margin;
+        rect.offsetMax = -Vector2.one*margin;
+        return rect;
+    }
+
+    static void Blossom(RectTransform rect,bool sprig=false)
+    {
+        var blossom=rect.gameObject.AddComponent<SpringBlossoms>();
+        blossom.sprig=sprig;
+        blossom.raycastTarget=false;
+        blossom.SetVerticesDirty();
+    }
+
+    static void Ornament(RectTransform rect)
+    {
+        Line(rect,0,.47f,.43f,.55f,Honey);
+        Line(rect,.57f,.47f,1,.55f,Honey);
+        Blossom(Box(rect,"花钿",.5f,.5f,12,12));
+    }
+
+    static SpringSurface Surface(RectTransform rt,Color color,bool paper=false)
     {
         var graphic = rt.gameObject.AddComponent<SpringSurface>();
         graphic.color = color;
-        graphic.texture = texture;
-        graphic.outline = outline;
-        graphic.SetAllDirty();
+        graphic.paper = paper;
         graphic.raycastTarget = false;
+        graphic.SetAllDirty();
         return graphic;
     }
 
@@ -213,10 +234,10 @@ public sealed class SpringPage : MonoBehaviour
         button.onClick.AddListener(click);
     }
 
-    Text Label(RectTransform parent,string value,int size,Color color)
+    Text Label(RectTransform parent,string value,int size,Color color,Font face=null)
     {
         var label = parent.gameObject.AddComponent<Text>();
-        label.font = font;
+        label.font = face ? face : readingFont;
         label.color = color;
         label.fontSize = size;
         label.resizeTextForBestFit = true;
