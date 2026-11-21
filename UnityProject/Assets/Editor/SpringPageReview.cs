@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-1.2-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-1.3-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -48,7 +48,11 @@ public static class SpringPageReview
             guides.alpha = 0;
             var story = safe.Find("扫描/花笺位置").GetChild(0).gameObject;
             if (!story.activeInHierarchy) throw new System.InvalidOperationException("点击后花笺未显示");
-            Capture(camera,folder,"story");
+            foreach (var character in page.visit.characters)
+            {
+                page.SetStory(character);
+                Capture(camera,folder,character.referenceName);
+            }
             page.SetTracking(false,false,true);
             if (story.activeSelf) throw new System.InvalidOperationException("丢失目标后花笺仍可见");
             page.ShowScanner(false);

@@ -60,9 +60,9 @@ def draw_sprig(ink, rng, origin, direction, palette, vertical=False):
     ink.ellipse((cx - 3, cy - 3, cx + 3, cy + 3), fill="#fbdb9d")
 
 
-def make_square_card():
+def make_square_card(source_path=SOURCE, seed=419, palette=None):
     # An irregular ink border supplies differently sized grayscale corners.
-    rng = random.Random(419)
+    rng = random.Random(seed)
     sheet = Image.new("RGB", (800, 800), "#fff4eb")
     ink = ImageDraw.Draw(sheet)
     for _ in range(5000):
@@ -71,8 +71,11 @@ def make_square_card():
         color = (int(45 + value * .8), int(18 + value * .8), int(38 + value * .76))
         points = [(x + rng.randrange(-size, size), y + rng.randrange(-size, size))
                   for _ in range(rng.randrange(3, 8))]
+        if palette:
+            dark, light = palette
+            color = tuple(round(a + (b-a)*value/254) for a,b in zip(dark,light))
         ink.polygon(points, fill=color)
-    with Image.open(SOURCE) as source:
+    with Image.open(source_path) as source:
         original = source.convert("RGB")
     original.thumbnail((520, 720))
     sheet.paste(original, ((800 - original.width) // 2, (800 - original.height) // 2))
@@ -92,3 +95,11 @@ def save_variant(card, output):
 if __name__ == "__main__":
     save_variant(make_card(), OUTPUT)
     save_variant(make_square_card(), OUTPUT.with_name("spring_track_v2.png"))
+
+    for season, seed, palette in [
+        ("summer", 702, ((14,48,39),(237,249,218))),
+        ("autumn", 1004, ((65,28,10),(253,226,177))),
+        ("winter", 1221, ((21,31,65),(224,242,255))),
+    ]:
+        source = SOURCE.with_name(season + "_card.png")
+        save_variant(make_square_card(source,seed,palette), OUTPUT.with_name(season + "_track_v1.png"))

@@ -562,7 +562,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SpringVisit
   session: {fileID: 305784906}
   images: {fileID: 1406610205}
-  prefab: {fileID: 3144323409548594996, guid: 018a3e4c51f8bef4b87f9d3d5451e5ff, type: 3}
+  characters:
+  - {fileID: 3144323409548594996, guid: 018a3e4c51f8bef4b87f9d3d5451e5ff, type: 3}
+  - {fileID: 976754951686161751, guid: ab79147f99f13924f86b2422121a1d15, type: 3}
+  - {fileID: 9213315788336231082, guid: 5d9455791884856449e22db270482896, type: 3}
+  - {fileID: 8143515859874660650, guid: 195c331133410fd4aa6f161d7b8671b9, type: 3}
   page: {fileID: 1720880501}
   arCamera: {fileID: 1441206244}
   limitedGrace: 0.35

@@ -27,3 +27,33 @@ MonoBehaviour:
     m_SpecifySize: 1
     m_Name: spring_zhiyi
     m_Texture: {fileID: 0}
+  - m_SerializedGuid:
+      m_GuidLow: 5156722394348706393
+      m_GuidHigh: 2159979675080793523
+    m_SerializedTextureGuid:
+      m_GuidLow: 14165033687233914718
+      m_GuidHigh: 7169150079650820793
+    m_Size: {x: 0.08, y: 0.08}
+    m_SpecifySize: 1
+    m_Name: summer_huajian
+    m_Texture: {fileID: 0}
+  - m_SerializedGuid:
+      m_GuidLow: 5209668905542547700
+      m_GuidHigh: 3113196244980815488
+    m_SerializedTextureGuid:
+      m_GuidLow: 15588282610540868679
+      m_GuidHigh: 13828578455256288762
+    m_Size: {x: 0.08, y: 0.08}
+    m_SpecifySize: 1
+    m_Name: autumn_manwu
+    m_Texture: {fileID: 0}
+  - m_SerializedGuid:
+      m_GuidLow: 5410821924056073766
+      m_GuidHigh: 11304917991270798264
+    m_SerializedTextureGuid:
+      m_GuidLow: 4653388880061390261
+      m_GuidHigh: 16006681683382432488
+    m_Size: {x: 0.08, y: 0.08}
+    m_SpecifySize: 1
+    m_Name: winter_xueling
+    m_Texture: {fileID: 0}

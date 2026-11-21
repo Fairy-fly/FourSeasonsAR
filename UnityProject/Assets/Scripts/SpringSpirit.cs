@@ -3,18 +3,24 @@ using UnityEngine.XR.ARSubsystems;
 
 public sealed class SpringSpirit : MonoBehaviour
 {
+    public enum Season { Spring, Summer, Autumn, Winter }
+    public Season season;
+    public string referenceName = "spring_zhiyi";
+    public string characterName = "春知意";
+    public string excerpt = "把第一缕春风捎给赶路的人。";
     public SpriteRenderer portrait;
     public Sprite petal;
-    readonly Transform[] petals = new Transform[16];
+    Transform[] petals;
     TrackingVisibility visibility;
     float appeared;
     float burst = -10f;
 
     void Awake()
     {
+        petals = new Transform[season == Season.Summer ? 4 : 16];
         for (int i = 0; i < petals.Length; i++)
         {
-            var leaf = new GameObject("樱花瓣", typeof(SpriteRenderer));
+            var leaf = new GameObject("季节特效", typeof(SpriteRenderer));
             leaf.transform.SetParent(transform, false);
             leaf.GetComponent<SpriteRenderer>().sprite = petal;
             petals[i] = leaf.transform;
@@ -47,6 +53,15 @@ public sealed class SpringSpirit : MonoBehaviour
         for (int i = 0; i < petals.Length; i++)
         {
             float t = Mathf.Repeat(age * .22f + i * .618f, 1);
+            if (season == Season.Summer)
+            {
+                float ring = Mathf.Repeat(age * .30f + i * .25f, 1);
+                petals[i].localPosition = Vector3.up * (.001f + i * .0003f);
+                petals[i].localRotation = Quaternion.Euler(90, 0, 0);
+                petals[i].localScale = Vector3.one * (ring * 6 + pulse * 2);
+                petals[i].GetComponent<SpriteRenderer>().color = new Color(1, 1, 1, Mathf.Sin(ring * Mathf.PI));
+                continue;
+            }
             float a = i * 2.4f + age * .7f;
             float r = .026f + .017f * Mathf.Sin(i * 7) + .033f * pulse;
             petals[i].localPosition = new Vector3(Mathf.Cos(a) * r, .105f * (1 - t), Mathf.Sin(a) * r);

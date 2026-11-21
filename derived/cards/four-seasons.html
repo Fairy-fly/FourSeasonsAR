@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>四时花旅 · 四季识别卡</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4efe7;color:#472c32;font:16px/1.6 system-ui,sans-serif}
+main{max-width:680px;margin:30px auto;padding:0 20px;text-align:center}h1{font:2rem/1.2 serif}nav{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
+button{font:inherit;border:1px solid #a9978d;padding:6px 16px;border-radius:24px;background:#fffaf1;color:inherit;cursor:pointer}
+button[aria-pressed=true]{background:#623443;color:white}img{display:block;width:min(440px,100%,60vh);height:auto;margin:18px auto}
+figure{margin:24px 0}figcaption{font:1.4rem serif}p{margin:12px auto}button:focus-visible{outline:3px solid #6d7755;outline-offset:2px}
+@page{size:A4 portrait;margin:18mm}@media print{body{background:white}main{margin:0;max-width:none}nav,button,.screen{display:none}img{width:80mm;height:80mm;margin:10mm auto}figure{break-inside:avoid}}
+</style>
+<main><h1>四时花旅</h1><nav aria-label="选择识别卡">
+<button data-image="spring_track_v2.png" aria-pressed="true">春知意</button><button data-image="summer_track_v1.png" aria-pressed="false">夏日花涧</button>
+<button data-image="autumn_track_v1.png" aria-pressed="false">秋叶漫舞</button><button data-image="winter_track_v1.png" aria-pressed="false">冬雪灵</button></nav>
+<figure><img id="card" src="spring_track_v2.png" width="800" height="800" alt="春知意识别卡"><figcaption id="name">春知意</figcaption></figure>
+<p class="screen">手机打开「开始扫描」，将整张方形图案连同边框放入镜头。</p>
+<button id="print">打印当前卡</button><p>按实际大小（100%）打印，方形图案外缘宽度应为 80 mm。</p></main>
+<script>
+const buttons=document.querySelectorAll('[data-image]');
+for(const button of buttons) button.addEventListener('click',()=>{
+  const name=button.textContent;
+  const card=document.getElementById('card');
+  card.src=button.dataset.image;card.alt=name+'识别卡';
+  document.getElementById('name').textContent=name;
+  for(const choice of buttons)choice.setAttribute('aria-pressed',String(choice===button));
+});
+document.getElementById('print').addEventListener('click',()=>window.print());
+</script></html>

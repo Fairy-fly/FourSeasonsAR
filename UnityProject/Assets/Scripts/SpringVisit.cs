@@ -11,7 +11,9 @@ public sealed class SpringVisit : MonoBehaviour
     public const string ReferenceName = "spring_zhiyi";
     public ARSession session;
     public ARTrackedImageManager images;
-    public SpringSpirit prefab;
+    public SpringSpirit[] characters;
+    readonly Dictionary<string, SpringSpirit> byReference = new();
+    SpringSpirit storyOwner;
     public SpringPage page;
     public Camera arCamera;
     [Min(0)] public float limitedGrace = .35f;
@@ -20,6 +22,11 @@ public sealed class SpringVisit : MonoBehaviour
     bool starting;
     bool scanning;
     float storyUntil;
+
+    void Awake()
+    {
+        foreach (var character in characters) byReference.Add(character.referenceName, character);
+    }
 
     void OnEnable() => images.trackablesChanged.AddListener(Changed);
     void OnDisable() => images.trackablesChanged.RemoveListener(Changed);
@@ -73,26 +80,39 @@ public sealed class SpringVisit : MonoBehaviour
         foreach (var spirit in instances.Values) if (spirit) Destroy(spirit.gameObject);
         instances.Clear();
         storyUntil = 0;
+        storyOwner = null;
         page.ShowScanner(false);
     }
 
     void Changed(ARTrackablesChangedEventArgs<ARTrackedImage> changes)
     {
         foreach (var item in changes.removed)
-            if (instances.Remove(item.Key, out var spirit) && spirit) Destroy(spirit.gameObject);
+            if (instances.Remove(item.Key, out var spirit) && spirit)
+            {
+                spirit.gameObject.SetActive(false);
+                Destroy(spirit.gameObject);
+            }
         foreach (var image in changes.added) Apply(image);
         foreach (var image in changes.updated) Apply(image);
     }
 
     void Apply(ARTrackedImage image)
     {
-        if (!scanning || image.referenceImage.name != ReferenceName) return;
-        if (!instances.TryGetValue(image.trackableId, out var spirit) || !spirit)
+        if (!scanning || !byReference.TryGetValue(image.referenceImage.name, out var prefab)) return;
+        instances.TryGetValue(image.trackableId, out var spirit);
+        if (spirit && spirit.referenceName != prefab.referenceName)
+        {
+            spirit.gameObject.SetActive(false);
+            Destroy(spirit.gameObject);
+            instances.Remove(image.trackableId);
+            spirit = null;
+        }
+        if (!spirit)
         {
             if (image.trackingState != TrackingState.Tracking) return;
             spirit = Instantiate(prefab, image.transform);
             instances[image.trackableId] = spirit;
-            Debug.Log("SpringVisit detected " + image.trackableId);
+            Debug.Log("Season detected " + prefab.referenceName + " " + image.trackableId);
         }
         spirit.Track(image.trackingState, limitedGrace);
     }
@@ -110,10 +130,12 @@ public sealed class SpringVisit : MonoBehaviour
             hit.collider.GetComponentInParent<SpringSpirit>() is SpringSpirit selected)
         {
             selected.Blossom();
+            storyOwner = selected;
+            page.SetStory(selected);
             storyUntil = Time.unscaledTime + 5;
-            Debug.Log("SpringVisit tapped spring_zhiyi");
+            Debug.Log("Season tapped " + selected.referenceName);
         }
-        if (!visible) storyUntil = 0;
+        if (!storyOwner || !storyOwner.gameObject.activeInHierarchy) storyUntil = 0;
         page.SetTracking(visible, Time.unscaledTime < storyUntil, ARSession.state == ARSessionState.SessionTracking);
     }
 }

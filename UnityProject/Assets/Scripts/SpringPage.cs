@@ -16,7 +16,7 @@ public sealed class SpringPage : MonoBehaviour
     GameObject coverLayer, home, scanner, story;
     RectTransform safe, back;
     CanvasGroup guides;
-    Text homeStatus, hint;
+    Text homeStatus, hint, storyTitle, storyText;
     RawImage coverImage;
     Vector2Int lastScreen;
     Rect lastSafe;
@@ -44,7 +44,7 @@ public sealed class SpringPage : MonoBehaviour
         Label(Bounds(heading,"书名",.08f,.80f,.92f,.929f),"四时花旅",82,Ink,brushFont);
         var divider = Bounds(heading,"题签",.26f,.788f,.74f,.808f);
         Ornament(divider);
-        Label(Bounds(heading,"副题",.06f,.746f,.94f,.786f),"春知意 · 2.5D AR 体验",20,Ink);
+        Label(Bounds(heading,"副题",.06f,.746f,.94f,.786f),"四季角色卡 · 2.5D AR 体验",20,Ink);
 
         var start = Fit(heading,"开始扫描",.22f,.078f,.78f,.158f,4.05f);
         var startSurface = Surface(start,Plum);
@@ -85,19 +85,25 @@ public sealed class SpringPage : MonoBehaviour
             }
         var chip = Bounds(overlay,"找卡提示",.17f,.135f,.83f,.185f);
         Surface(chip,Glass);
-        hint = Label(Bounds(chip,"提示文字",.04f,0,.96f,1),"把整张春卡放入框内",19,Color.white);
+        hint = Label(Bounds(chip,"提示文字",.04f,0,.96f,1),"把整张角色卡放入框内",19,Color.white);
         var slip = Fit(scan,"花笺",.065f,.065f,.935f,.236f,2.98f);
         Surface(slip,Honey,true);
         Surface(Inset(slip,"笺纸",1.5f),Parchment,true);
         Surface(Inset(slip,"内框",5),new Color32(224,197,164,255),true);
         Surface(Inset(slip,"内页",6),Parchment,true);
         Blossom(Bounds(slip,"折枝樱花",.71f,.59f,1.015f,1.04f),true);
-        Label(Bounds(slip,"人名",.18f,.51f,.82f,.90f),"春知意",38,Ink,brushFont);
+        storyTitle = Label(Bounds(slip,"人名",.18f,.51f,.82f,.90f),"春知意",38,Ink,brushFont);
         Ornament(Bounds(slip,"花钿",.32f,.42f,.68f,.51f));
-        Label(Bounds(slip,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
+        storyText = Label(Bounds(slip,"角色介绍",.06f,.115f,.94f,.415f),"把第一缕春风捎给赶路的人。",22,Ink);
         story = slip.gameObject;
         ShowScanner(false);
         UpdateLayout();
+    }
+
+    public void SetStory(SpringSpirit character)
+    {
+        storyTitle.text = character.characterName;
+        storyText.text = character.excerpt;
     }
 
     public void Message(string message) => homeStatus.text = message;
@@ -108,7 +114,7 @@ public sealed class SpringPage : MonoBehaviour
         guides.alpha = 1;
         story.SetActive(false);
         homeStatus.text = "";
-        hint.text = "把整张春卡放入框内";
+        hint.text = "把整张角色卡放入框内";
         coverLayer.SetActive(!scanning);
         home.SetActive(!scanning);
         scanner.SetActive(scanning);
@@ -119,7 +125,7 @@ public sealed class SpringPage : MonoBehaviour
         tracked = visible;
         bool open = visible && showStory;
         if (story.activeSelf != open) story.SetActive(open);
-        string tip = sessionReady ? "把整张春卡放入框内" : "正在定位，请缓慢移动手机";
+        string tip = sessionReady ? "把整张角色卡放入框内" : "正在定位，请缓慢移动手机";
         if (!visible && hint.text != tip) hint.text = tip;
     }
 
