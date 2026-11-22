@@ -47,9 +47,10 @@ public sealed class SpringSpirit : MonoBehaviour
         float fade = Mathf.Clamp01(age / .35f);
         float pulse = Mathf.Max(0, 1 - (now - burst) / .8f);
         portrait.color = new Color(1, 1, 1, fade);
-        portrait.transform.localScale = Vector3.one * (.84f + .16f * fade + .08f * pulse);
-        portrait.transform.localPosition = Vector3.up * (.006f + .003f * Mathf.Sin(age * 2));
-        portrait.transform.rotation = Camera.main.transform.rotation;
+        float bounce = Mathf.Sin((1-pulse)*Mathf.PI*2)*pulse;
+        portrait.transform.localScale = Vector3.one * (.84f + .16f * fade + .18f * bounce);
+        portrait.transform.localPosition = Vector3.up * (.006f + .003f * Mathf.Sin(age * 2) + .009f * Mathf.Max(0,bounce));
+        portrait.transform.rotation = Camera.main.transform.rotation * Quaternion.Euler(0,0,4*bounce);
         for (int i = 0; i < petals.Length; i++)
         {
             float t = Mathf.Repeat(age * .22f + i * .618f, 1);

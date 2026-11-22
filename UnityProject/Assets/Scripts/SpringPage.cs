@@ -23,8 +23,11 @@ public sealed partial class SpringPage : MonoBehaviour
     Rect lastSafe;
     bool tracked;
 
-    void Awake()
+    void Awake() => BuildInterface();
+
+    public void BuildInterface()
     {
+        if (coverLayer) return;
         var canvas = new GameObject("四时花旅",typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));
         canvas.transform.SetParent(transform,false);
         canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
@@ -45,7 +48,8 @@ public sealed partial class SpringPage : MonoBehaviour
         var heading = Bounds(safe,"封面",0,0,1,1);
         home = heading.gameObject;
         home.AddComponent<FlowerPageEntrance>();
-        Label(Bounds(heading,"书名",.08f,.80f,.92f,.929f),"四时花旅",82,Ink,brushFont);
+        var title=Bounds(heading,"书名",.056f,.801f,.944f,.955f).gameObject.AddComponent<InkTitle>();
+        title.Configure(Resources.Load<Texture2D>("Album/title-home"),Ink,new Color32(194,120,116,255),1.45f);
         var divider = Bounds(heading,"题签",.26f,.788f,.74f,.808f);
         Ornament(divider);
         Label(Bounds(heading,"副题",.06f,.746f,.94f,.786f),"四季角色卡 · 2.5D AR 体验",20,Ink);

@@ -10,7 +10,7 @@ public sealed class FlowerButton : Button
     {
         base.DoStateTransition(state, instant);
         if (!isActiveAndEnabled) return;
-        float target = state == SelectionState.Pressed ? .955f : 1;
+        float target = state == SelectionState.Pressed ? .927f : 1;
         if (motion != null) StopCoroutine(motion);
         if (instant || !Application.isPlaying)
         {
@@ -18,17 +18,18 @@ public sealed class FlowerButton : Button
             return;
         }
         if (state == SelectionState.Pressed)
-            transform.localScale = Vector3.one * Mathf.Min(transform.localScale.x,.979f);
+            transform.localScale = Vector3.one * Mathf.Min(transform.localScale.x,.965f);
         motion = StartCoroutine(ScaleTo(target));
     }
 
     IEnumerator ScaleTo(float target)
     {
         float start = transform.localScale.x;
-        float duration = target < 1 ? .065f : .13f;
+        float duration = target < 1 ? .075f : .23f;
         for (float t = 0; t < 1; t += Time.unscaledDeltaTime / duration)
         {
-            transform.localScale = Vector3.one * Mathf.Lerp(start,target,1 - (1-t)*(1-t));
+            float rebound = target == 1 ? (1-start)*.48f*Mathf.Sin(Mathf.PI*t) : 0;
+            transform.localScale = Vector3.one * (Mathf.Lerp(start,target,1 - (1-t)*(1-t)) + rebound);
             yield return null;
         }
         transform.localScale = Vector3.one * target;

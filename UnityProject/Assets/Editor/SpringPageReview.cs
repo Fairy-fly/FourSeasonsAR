@@ -11,7 +11,7 @@ public static class SpringPageReview
     {
         EditorSceneManager.OpenScene("Assets/Scenes/SpringVisit.unity");
         var page = Object.FindAnyObjectByType<SpringPage>();
-        page.SendMessage("Awake");
+        page.BuildInterface();
         var canvas = page.GetComponentInChildren<Canvas>();
         var frame = (RectTransform)canvas.transform;
         canvas.GetComponent<CanvasScaler>().enabled = false;
@@ -34,11 +34,12 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-1.6-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-1.7-editor");
         Directory.CreateDirectory(folder);
         try
         {
             Capture(camera,folder,"cover");
+            CheckTitle(safe.Find("封面/书名").GetComponent<InkTitle>(),camera,"Home");
             CheckAlbum(page,safe,camera,folder);
             page.ShowScanner(true);
             page.SetTracking(false,false,true);
@@ -72,6 +73,34 @@ public static class SpringPageReview
             RenderTexture.ReleaseTemporary(target);
         }
         Debug.Log("Spring UI editor review completed");
+    }
+
+    static void CheckTitle(InkTitle title,Camera camera,string name)
+    {
+        if (!title || title.mainTexture.width < 500) throw new System.InvalidOperationException(name+" 题字素材缺失");
+        string frames=Path.GetFullPath("Library/TitleFrames/"+name);
+        Directory.CreateDirectory(frames);
+        var full=camera.targetTexture;
+        var preview=RenderTexture.GetTemporary(540,1200,24);
+        try
+        {
+            camera.targetTexture=preview;
+            for(int i=0;i<=30;i++)
+            {
+                title.SetProgress(i/30f);
+                Capture(camera,frames,"title-"+i.ToString("D3"));
+                int n=title.canvasRenderer.GetMesh()?.vertexCount ?? 0;
+                if ((i==0 && n!=0) || (i==15 && n<=4) || (i==30 && n!=4))
+                    throw new System.InvalidOperationException(name+" 题字动画阶段错误");
+            }
+        }
+        finally
+        {
+            title.SetProgress(1);
+            camera.targetTexture=full;
+            RenderTexture.ReleaseTemporary(preview);
+        }
+        Debug.Log(name+" title assembly verified");
     }
 
     static void CheckStoryEntrance(SpringPage page,GameObject story,Camera camera,string folder)
@@ -144,6 +173,14 @@ public static class SpringPageReview
             Check(open.transform.localScale == Vector3.one,"抬起后按钮未复原");
             open.onClick.Invoke();
             Check(count.text.EndsWith("0 / 4") && grid.gameObject.activeInHierarchy,"首次打开花册失败");
+            foreach(string title in new[]{"时见","星眠"})
+            {
+                var seat=grid.Find(title);
+                Check(seat && seat.gameObject.activeInHierarchy && !seat.GetComponentInChildren<Button>() &&
+                    seat.GetComponentInChildren<AlbumScenery>().texture,"隐藏席位配置错误");
+            }
+            Check(grid.GetComponentsInChildren<AlbumAtmosphere>().Length == 6,"目录应有六处常驻动效");
+            CheckTitle(grid.Find("册名").GetComponent<InkTitle>(),camera,"Album");
             foreach (var character in visit.characters)
             {
                 var card = grid.Find(character.referenceName).GetComponent<Button>();
@@ -181,15 +218,41 @@ public static class SpringPageReview
                 var card = grid.Find(character.referenceName).GetComponent<Button>();
                 Check(card.interactable && card.GetComponentInChildren<Image>().sprite == character.portrait.sprite,"卡位立绘错误");
                 card.onClick.Invoke();
+                Canvas.ForceUpdateCanvases();
+                var scenery=detail.GetComponentInChildren<AlbumScenery>();
+                Check(scenery.texture && scenery.uvRect.width > 0 &&
+                    (scenery.uvRect.center.x >= .5f) == ((int)character.season % 2 == 1) &&
+                    (scenery.uvRect.center.y >= .5f) == ((int)character.season < 2),"角色场景绑定错误");
                 Check(detail.gameObject.activeInHierarchy && !grid.gameObject.activeSelf &&
                     detail.Find("题名").GetComponent<Text>().text == character.characterName &&
                     detail.Find("立绘").GetComponent<Image>().sprite == character.portrait.sprite &&
                     detail.Find("角色花笺/花语").GetComponent<Text>().text == character.excerpt,"详情映射错误");
                 if (n == 1) Capture(camera,folder,"album-detail");
+                if (n == 2 || n == 3) Capture(camera,folder,"album-detail-" + character.referenceName);
                 if (character.referenceName == "winter_xueling") Capture(camera,folder,"album-detail-winter");
                 detail.Find("返回花册").GetComponent<Button>().onClick.Invoke();
                 if (n == 1 || n == visit.characters.Length) Capture(camera,folder,"album-" + n);
             }
+            var artFrames = Path.GetFullPath("Library/AlbumAtmosphereFrames");
+            Directory.CreateDirectory(artFrames);
+            var large = camera.targetTexture;
+            var small = RenderTexture.GetTemporary(432,960,24);
+            try
+            {
+                camera.targetTexture=small;
+                var air=grid.GetComponentsInChildren<AlbumAtmosphere>();
+                Vector3 firstVertex=default;
+                for(int i=0;i<48;i++)
+                {
+                    foreach(var a in air) a.Sample(i/12f);
+                    Capture(camera,artFrames,"album-"+i.ToString("D3"));
+                    var mesh=air[0].canvasRenderer.GetMesh();
+                    Check(mesh && mesh.vertexCount > 0,"春季常驻花瓣网格为空");
+                    if(i==0) firstVertex=mesh.vertices[0];
+                    if(i==12) Check((mesh.vertices[0]-firstVertex).sqrMagnitude>.01f,"春季花瓣没有移动");
+                }
+            }
+            finally { camera.targetTexture=large; RenderTexture.ReleaseTemporary(small); }
             grid.Find("返回封面").GetComponent<Button>().onClick.Invoke();
             Debug.Log("Album persistence, duplicate collection, detail mapping and navigation checks passed");
         }
