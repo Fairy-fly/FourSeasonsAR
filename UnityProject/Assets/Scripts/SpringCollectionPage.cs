@@ -234,6 +234,9 @@ public sealed partial class SpringPage
         switchLabel.text = "查看 3D";
         detailBack.anchorMin = new Vector2(hasModel ? .052f : .30f,.028f);
         detailBack.anchorMax = new Vector2(hasModel ? .478f : .70f,.101f);
+        modelSwitch.anchorMin=new Vector2(.522f,.028f);
+        modelSwitch.anchorMax=new Vector2(.948f,.101f);
+        ArrangeActions(id);
         DressDetail(id);
         detailName.font = titleFont;
         detailName.text = title;

@@ -21,8 +21,26 @@ public sealed class SpringVisit : MonoBehaviour
     readonly Dictionary<TrackableId, ARTrackedImage> targets = new();
     readonly CardFocus focus = new();
     bool starting;
+    string invitation;
+    public WorldWalk Travel { get; private set; }
+    public void Invite(string id)
+    {
+        if(!CanOpenAlbum || !Album.Contains(id) || id!=ReferenceName)return;
+        invitation=id;
+        page.WorldDisplay(true);
+        page.WorldHint("正在开启摄像头");
+        StartCoroutine(Enter());
+    }
+    public void LeaveWorld()
+    {
+        if(starting)return;
+        if(Travel && Travel.Active)Travel.Close();
+        invitation=null;
+        Home();
+        page.WorldReturn();
+    }
     bool scanning;
-    public bool CanOpenAlbum => !starting && !scanning;
+    public bool CanOpenAlbum => !starting && !scanning && !(Travel && Travel.Active);
     public SeasonAlbum Album { get; set; } = new SeasonAlbum();
     float storyUntil;
 
@@ -36,7 +54,7 @@ public sealed class SpringVisit : MonoBehaviour
 
     public void Begin()
     {
-        if (!starting && !scanning) StartCoroutine(Enter());
+        if(CanOpenAlbum){invitation=null;StartCoroutine(Enter());}
     }
 
     IEnumerator Enter()
@@ -57,6 +75,7 @@ public sealed class SpringVisit : MonoBehaviour
         {
             page.Message("请在手机的应用权限中允许使用相机，再点开始扫描。");
             starting = false;
+            if(invitation!=null)page.WorldHint("相机或 AR 服务暂不可用，可返回花册");
             yield break;
         }
         yield return ARSession.CheckAvailability();
@@ -66,13 +85,20 @@ public sealed class SpringVisit : MonoBehaviour
         {
             page.Message("AR 服务暂不可用，请检查 Google Play Services for AR 后重试。");
             starting = false;
+            if(invitation!=null)page.WorldHint("相机或 AR 服务暂不可用，可返回花册");
             yield break;
         }
-        scanning = true;
+        scanning = invitation==null;
+        images.enabled=scanning;
         starting = false;
         images.gameObject.SetActive(true);
         session.gameObject.SetActive(true);
-        page.ShowScanner(true);
+        if(scanning)page.ShowScanner(true);
+        else
+        {
+            if(!Travel)Travel=gameObject.AddComponent<WorldWalk>();
+            Travel.Open(this,invitation);
+        }
     }
 
     public void Home()
@@ -83,6 +109,7 @@ public sealed class SpringVisit : MonoBehaviour
         targets.Clear();
         focus.Clear();
         ClearPresentation();
+        page.WorldDisplay(false);
         page.ShowScanner(false);
     }
 

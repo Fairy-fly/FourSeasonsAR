@@ -93,7 +93,7 @@ public sealed partial class SpringPage
     public void FollowSpirit(SpringSpirit spirit,bool direct,Camera camera)
     {
         if(!spirit || !direct || !camera || !scanner.activeSelf){bubble.gameObject.SetActive(false);return;}
-        Vector3 shoulder=spirit.transform.TransformPoint(new Vector3(0,.078f,0));
+        Vector3 shoulder=spirit.Shoulder;
         Vector3 viewport=camera.WorldToViewportPoint(shoulder);
         if(viewport.z<=0 || viewport.x<0 || viewport.x>1 || viewport.y<0 || viewport.y>1)
         {bubble.gameObject.SetActive(false);return;}
@@ -103,7 +103,7 @@ public sealed partial class SpringPage
         floatingName.text=spirit.characterName;
         floatingStory.gameObject.SetActive(!shortForm);
         floatingStory.text=spirit.excerpt;
-        floatingHint.text=owned?"轻触回应":"点击收录进四季花册~";
+        floatingHint.text=owned?"已收录 · 轻触回应":"点击收录进四季花册~";
         float w=Mathf.Min(host.rect.width*.46f,172),h=shortForm?52:77;
         bubble.sizeDelta=new Vector2(w,h);
         RectTransformUtility.ScreenPointToLocalPointInRectangle(host,camera.WorldToScreenPoint(shoulder),null,out var local);

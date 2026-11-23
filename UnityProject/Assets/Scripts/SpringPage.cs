@@ -125,6 +125,7 @@ public sealed partial class SpringPage : MonoBehaviour
         storyEntrance.Bind(paper.gameObject.AddComponent<CanvasGroup>(),words.gameObject.AddComponent<CanvasGroup>(),petals);
         BuildAlbum(scan);
         BuildEncounters();
+        BuildWorldPage();
         ShowScanner(false);
         UpdateLayout();
     }

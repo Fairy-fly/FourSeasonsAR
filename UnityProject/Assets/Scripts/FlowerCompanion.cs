@@ -37,8 +37,10 @@ public sealed class FlowerCompanion : MonoBehaviour
         // Measure before parenting: a tracked card can be vertical or tilted.
         var bounds=skin.bounds;
         if(bounds.size.y < .0001f)throw new System.InvalidOperationException("Invalid skin bounds "+bounds);
-        float scale=height/bounds.size.y;
-        Vector3 offset=visual.position-new Vector3(bounds.center.x,bounds.min.y,bounds.center.z);
+        // The imported skinned culling bounds contain animation padding. Use the authored sole
+        // and crown for placement; the culling box would leave the shoes over the floor.
+        float scale=height/(1.12838f-.117f);
+        Vector3 offset=visual.position-new Vector3(bounds.center.x,.117f,bounds.center.z);
         visual.SetParent(transform,false);
         visual.localScale*=scale;
         visual.localPosition=scale*offset;
@@ -51,9 +53,11 @@ public sealed class FlowerCompanion : MonoBehaviour
         age=Time.time;
     }
 
+    public Vector3 Palm => joints.TryGetValue("PalmL",out var joint)?joint.position:transform.position+transform.up*(Height*.6f);
+
     public void Respond()
     {
-        if(Time.time-response>.85f) response=Time.time;
+        if(Time.time-response>1.45f) response=Time.time;
     }
 
     void Pose(string name,Vector3 localAxis,float degrees)
@@ -66,17 +70,23 @@ public sealed class FlowerCompanion : MonoBehaviour
     void LateUpdate()
     {
         if(!visual) return;
-        float t=Time.time-age;
-        float greeting=Mathf.Sin(Mathf.Clamp01((Time.time-response)/1.15f)*Mathf.PI);
+        Sample(Time.time-age,Time.time-response,Time.deltaTime);
+    }
+
+    public void Sample(float t,float reactionAge,float dt)
+    {
+        float reach=Mathf.SmoothStep(0,1,Mathf.Clamp01((reactionAge-.12f)/.33f))*
+                    (1-Mathf.SmoothStep(0,1,Mathf.Clamp01((reactionAge-.82f)/.58f)));
+        float greeting=Mathf.Sin(Mathf.Clamp01(reactionAge/1.45f)*Mathf.PI);
         float entrance=1-Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.6f));
-        stride+=Time.deltaTime*7f*Walking;
+        stride+=dt*7f*Walking;
         float step=Mathf.Sin(stride)*Walking;
-        Pose("Chest",Vector3.right,1.5f*Mathf.Sin(t*1.8f)+6*entrance-4*greeting);
-        Pose("Head",Vector3.up,3*Mathf.Sin(t*.9f)+12*greeting);
-        Pose("UpperArmL",Vector3.forward,6*greeting+step*4);
-        Pose("ForearmL",Vector3.right,-13*greeting);
-        Pose("PalmL",Vector3.up,17*greeting);
-        Pose("UpperArmR",Vector3.forward,-4*greeting-step*4);
+        Pose("Chest",new Vector3(-.42f,1,0).normalized,1.5f*Mathf.Sin(t*1.8f)+6*entrance+28*greeting);
+        Pose("Head",Vector3.up,4*Mathf.Sin(t*.9f)-23*greeting);
+        Pose("UpperArmL",Vector3.forward,-31*reach+step*4);
+        Pose("ForearmL",Vector3.right,-34*reach);
+        Pose("PalmL",Vector3.up,28*greeting);
+        Pose("UpperArmR",Vector3.forward,8*greeting-step*4);
         Pose("CurlL",Vector3.forward,2*Mathf.Sin(t*1.9f)+3*step);
         Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*1.9f+.7f)-3*step);
         Pose("HemL",Vector3.right,4*step+2*greeting);

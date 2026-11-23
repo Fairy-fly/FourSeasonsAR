@@ -7,6 +7,20 @@ public static class EncounterReview
 {
     public static void CheckSpring()
     {
+        using(var polygon=new Unity.Collections.NativeArray<Vector2>(new[]{new Vector2(0,0),new Vector2(2,0),new Vector2(2,2),new Vector2(1.4f,2),new Vector2(1.4f,.7f),new Vector2(.6f,.7f),new Vector2(.6f,2),new Vector2(0,2)},Unity.Collections.Allocator.Temp))
+        {
+            var from=new Vector2(.3f,1.5f);
+            var end=WorldWalk.SafeEnd(polygon,from,new Vector2(1.7f,1.5f),.035f);
+            if(end.x>.58f || end.x<.5f || WorldWalk.Inside(polygon,new Vector2(1,1),.035f))
+                throw new InvalidOperationException("Walk crossed a concave table boundary");
+        }
+        var album=new SeasonAlbum("test.field."+Guid.NewGuid()+".");
+        try
+        {
+            album.Collect("a");album.Collect("b");album.Reset(new[]{"a"});
+            if(album.Contains("a") || !album.Contains("b") || album.Collect("b"))throw new InvalidOperationException("Selective reset failed");
+        }
+        finally {album.Reset(new[]{"a","b"});}
         var sample=AssetDatabase.LoadAssetAtPath<SpringSpirit>("Assets/Prefabs/SpringSpirit.prefab");
         var spirit=UnityEngine.Object.Instantiate(sample);
         var camera=new GameObject("Encounter review camera",typeof(Camera)).GetComponent<Camera>();
@@ -31,6 +45,12 @@ public static class EncounterReview
             if(!hit || Mathf.Abs(hit.height-.105f)>.001f)throw new InvalidOperationException("Missing interaction volume");
             var folder=Path.GetFullPath("../reports/evidence/encounter-alpha1");
             Directory.CreateDirectory(folder);
+            var companion=spirit.GetComponentInChildren<FlowerCompanion>();
+            companion.Sample(3,4,0);
+            Vector3 neutral=companion.Palm;
+            companion.Sample(3,.60f,0);
+            if(Vector3.Distance(neutral,companion.Palm)<.0015f)throw new InvalidOperationException("Palm gesture too small or rig bone names changed");
+            companion.Sample(3,4,0);
             byte[] first=null;
             foreach(int angle in new[]{0,70,180})
             {

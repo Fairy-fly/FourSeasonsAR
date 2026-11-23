@@ -29,14 +29,18 @@ public sealed class SpringSpirit : MonoBehaviour
 
     void OnEnable() => appeared = Time.unscaledTime;
     FlowerCompanion companion;
+    public Vector3 Shoulder => (companion ? companion.transform : transform).TransformPoint(Vector3.up*.078f);
 
     public void ShowCompanion(Camera camera)
     {
         if(companion)return;
         var rig = new GameObject("卡上花灵");
         rig.transform.SetParent(transform,false);
-        Vector3 towards=Vector3.ProjectOnPlane(camera.transform.position-transform.position,transform.up);
-        if(towards.sqrMagnitude>.00001f) rig.transform.rotation=Quaternion.LookRotation(towards,transform.up);
+        Vector3 up=transform.up;
+        if(Mathf.Abs(Vector3.Dot(up,Vector3.up)) < .55f)
+            up=Vector3.ProjectOnPlane(Vector3.up,up).normalized;
+        Vector3 towards=Vector3.ProjectOnPlane(camera.transform.position-transform.position,up);
+        if(towards.sqrMagnitude>.00001f) rig.transform.rotation=Quaternion.LookRotation(towards,up);
         companion=rig.AddComponent<FlowerCompanion>();
         companion.Initialize(referenceName,.105f);
         portrait.enabled=false;
@@ -85,6 +89,12 @@ public sealed class SpringSpirit : MonoBehaviour
             float a = i * 2.4f + age * .7f;
             float r = .026f + .017f * Mathf.Sin(i * 7) + .033f * pulse;
             petals[i].localPosition = new Vector3(Mathf.Cos(a) * r, .105f * (1 - t), Mathf.Sin(a) * r);
+            if(companion && now-burst>=.26f && now-burst<1.05f)
+            {
+                float flight=(now-burst-.26f)/.79f;
+                Vector3 spread=companion.transform.right*Mathf.Cos(i*2.4f)+companion.transform.forward*Mathf.Sin(i*2.4f);
+                petals[i].position=companion.Palm+spread*(flight*.042f)+companion.transform.up*(.045f*Mathf.Sin(flight*Mathf.PI));
+            }
             petals[i].rotation = Camera.main.transform.rotation * Quaternion.Euler(0, 0, i * 43 + age * 65);
             petals[i].localScale = Vector3.one * Mathf.Sin(Mathf.PI * t);
         }
