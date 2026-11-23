@@ -16,6 +16,7 @@ public static class SpringSample
     // 已生成的场景、角色预制体和参考图库可直接在 Inspector 中编辑和重建。
     public static void ReviewAndBuildApk()
     {
+        EncounterReview.CheckSpring();
         SpringPageReview.Render();
         BuildApk();
     }
@@ -86,7 +87,7 @@ public static class SpringSample
         }
         var shader = Resources.Load<Shader>("Gallery/FigureStudio");
         if (!shader || ShaderUtil.ShaderHasError(shader)) throw new BuildFailedException("花册着色器错误");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.11");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-2.0-alpha.1");
     }
 
     public static void ConfigurePolish()

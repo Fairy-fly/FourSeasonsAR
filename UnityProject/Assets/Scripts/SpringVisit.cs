@@ -122,7 +122,8 @@ public sealed class SpringVisit : MonoBehaviour
             ClearPresentation();
             if (focus.State != TrackingState.Tracking) return;
             activeSpirit = Instantiate(byReference[target.referenceImage.name], target.transform);
-            if (Album.Collect(activeSpirit.referenceName)) page.AnnounceCollection(activeSpirit);
+            if(activeSpirit.referenceName == ReferenceName) activeSpirit.ShowCompanion(arCamera);
+            Debug.Log("Season encountered " + activeSpirit.referenceName);
         }
         activeSpirit.Track(focus.State, limitedGrace);
     }
@@ -144,17 +145,22 @@ public sealed class SpringVisit : MonoBehaviour
         if (!scanning) return;
         bool visible = activeSpirit && activeSpirit.gameObject.activeInHierarchy;
         var pointer = Pointer.current;
-        if (visible && pointer != null && pointer.press.wasPressedThisFrame &&
+        if (visible && focus.State == TrackingState.Tracking && pointer != null && pointer.press.wasPressedThisFrame &&
             !page.IsBackButton(pointer.position.ReadValue()) &&
             Physics.Raycast(arCamera.ScreenPointToRay(pointer.position.ReadValue()), out var hit) &&
             hit.collider.GetComponentInParent<SpringSpirit>() == activeSpirit)
         {
             activeSpirit.Blossom();
-            page.SetStory(activeSpirit);
-            storyUntil = Time.unscaledTime + StoryPetalEntrance.Duration + 5;
+            if(Album.Collect(activeSpirit.referenceName))
+            {
+                page.AnnounceCollection(activeSpirit);
+                page.FlyToAlbum(activeSpirit);
+                Debug.Log("Season collected by tap " + activeSpirit.referenceName);
+            }
             Debug.Log("Season tapped " + activeSpirit.referenceName);
         }
         if (!visible) storyUntil = 0;
-        page.SetTracking(visible, Time.unscaledTime < storyUntil, ARSession.state == ARSessionState.SessionTracking);
+        page.SetTracking(visible,false,ARSession.state == ARSessionState.SessionTracking);
+        page.FollowSpirit(activeSpirit,visible && focus.State==TrackingState.Tracking,arCamera);
     }
 }

@@ -8,6 +8,12 @@ public sealed class SeasonAlbum
 
     public bool Contains(string referenceId) => PlayerPrefs.GetInt(prefix + referenceId, 0) == 1;
 
+    public void Reset(System.Collections.Generic.IEnumerable<string> ids)
+    {
+        foreach(var id in ids) PlayerPrefs.DeleteKey(prefix + id);
+        PlayerPrefs.Save();
+    }
+
     public bool Collect(string referenceId)
     {
         if (Contains(referenceId)) return false;

@@ -28,7 +28,26 @@ public sealed class SpringSpirit : MonoBehaviour
     }
 
     void OnEnable() => appeared = Time.unscaledTime;
-    public void Blossom() => burst = Time.unscaledTime;
+    FlowerCompanion companion;
+
+    public void ShowCompanion(Camera camera)
+    {
+        if(companion)return;
+        var rig = new GameObject("卡上花灵");
+        rig.transform.SetParent(transform,false);
+        Vector3 towards=Vector3.ProjectOnPlane(camera.transform.position-transform.position,transform.up);
+        if(towards.sqrMagnitude>.00001f) rig.transform.rotation=Quaternion.LookRotation(towards,transform.up);
+        companion=rig.AddComponent<FlowerCompanion>();
+        companion.Initialize(referenceName,.105f);
+        portrait.enabled=false;
+        portrait.GetComponent<BoxCollider>().enabled=false;
+    }
+
+    public void Blossom()
+    {
+        burst = Time.unscaledTime;
+        if(companion) companion.Respond();
+    }
 
     // 只在首次 Limited 时启动倒计时，连续 Limited 事件不会延长缓冲。
     public void Track(TrackingState state, float grace)

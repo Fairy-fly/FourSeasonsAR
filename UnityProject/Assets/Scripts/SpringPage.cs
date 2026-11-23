@@ -124,6 +124,7 @@ public sealed partial class SpringPage : MonoBehaviour
         storyEntrance = story.AddComponent<StoryPetalEntrance>();
         storyEntrance.Bind(paper.gameObject.AddComponent<CanvasGroup>(),words.gameObject.AddComponent<CanvasGroup>(),petals);
         BuildAlbum(scan);
+        BuildEncounters();
         ShowScanner(false);
         UpdateLayout();
     }
@@ -140,6 +141,8 @@ public sealed partial class SpringPage : MonoBehaviour
     public void ShowScanner(bool scanning)
     {
         if (modelViewer) modelViewer.Close();
+        if(bubble) bubble.gameObject.SetActive(false);
+        if(flight) flight.enabled=false;
         tracked = false;
         guides.alpha = 1;
         story.SetActive(false);
@@ -171,6 +174,7 @@ public sealed partial class SpringPage : MonoBehaviour
     void Update()
     {
         UpdateLayout();
+        UpdateFlight();
         if (announcement.transform.parent.gameObject.activeSelf && Time.unscaledTime >= announcementUntil)
             announcement.transform.parent.gameObject.SetActive(false);
         if (scanner.activeSelf)

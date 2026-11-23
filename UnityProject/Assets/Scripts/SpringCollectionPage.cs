@@ -176,7 +176,8 @@ public sealed partial class SpringPage
         bool accent = primary || title == "四季花册";
         var rim = Surface(rect,Honey,true);
         var face = Surface(Inset(rect,"漆面",1.2f),Parchment,true);
-        if (accent) face.SetGradient(new Color32(66,117,104,255),new Color32(33,67,67,255));
+        if(title=="四季花册") face.SetGradient(new Color32(154,104,126,255),new Color32(100,52,78,255));
+        else if (accent) face.SetGradient(new Color32(66,117,104,255),new Color32(33,67,67,255));
         else face.SetGradient(new Color32(255,249,235,255),new Color32(224,202,169,255));
         if (primary) switchFace = face;
         Label(Bounds(rect,"按钮文字",.04f,.07f,.96f,.93f),title,23,accent ? Parchment : Ink);
