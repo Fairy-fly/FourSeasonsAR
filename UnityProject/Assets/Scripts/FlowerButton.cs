@@ -4,12 +4,14 @@ using UnityEngine.UI;
 
 public sealed class FlowerButton : Button
 {
+    public EnamelFlare flare;
     Coroutine motion;
 
     protected override void DoStateTransition(SelectionState state, bool instant)
     {
         base.DoStateTransition(state, instant);
         if (!isActiveAndEnabled) return;
+        if (state == SelectionState.Pressed && flare) flare.Play();
         float target = state == SelectionState.Pressed ? .927f : 1;
         if (motion != null) StopCoroutine(motion);
         if (instant || !Application.isPlaying)

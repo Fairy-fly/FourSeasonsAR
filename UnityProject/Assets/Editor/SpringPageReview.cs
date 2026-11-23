@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-1.7-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-1.11-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -176,8 +176,26 @@ public static class SpringPageReview
             foreach(string title in new[]{"时见","星眠"})
             {
                 var seat=grid.Find(title);
-                Check(seat && seat.gameObject.activeInHierarchy && !seat.GetComponentInChildren<Button>() &&
+                Check(seat && seat.gameObject.activeInHierarchy && seat.GetComponent<Button>() &&
                     seat.GetComponentInChildren<AlbumScenery>().texture,"隐藏席位配置错误");
+                string id=title=="时见" ? AlbumModelViewer.TimeKeeper : AlbumModelViewer.StarDreamer;
+                seat.GetComponent<Button>().onClick.Invoke();
+                Check(detail.gameObject.activeInHierarchy && detail.Find("题名").GetComponent<Text>().text==title &&
+                    detail.Find("立绘").GetComponent<Image>().sprite==Resources.Load<Sprite>("Gallery/"+id+"/Portrait"),"隐藏款详情映射错误");
+                var portraitImporter=(TextureImporter)AssetImporter.GetAtPath("Assets/Resources/Gallery/"+id+"/Portrait.png");
+                Check(portraitImporter.DoesSourceTextureHaveAlpha() && portraitImporter.GetPlatformTextureSettings("Android").format == TextureImporterFormat.ETC2_RGBA8,"隐藏立绘缺少透明通道");
+                Check(!detail.Find("画境").gameObject.activeSelf && !detail.Find("花钿位置") && !grid.Find("花钿位置") && !detail.Find("查看 3D/嵌金") &&
+                    detail.Find("角色花笺/笺纸").GetComponent<SpringSurface>(),"隐藏款花笺或场景配置错误");
+                Capture(camera,folder,id+"-portrait");
+                var face = detail.Find("查看 3D/漆面").GetComponent<SpringSurface>();
+                var colors = face.canvasRenderer.GetMesh().colors32;
+                Check(colors.Length > 2 && System.Array.Exists(colors,c => !c.Equals(colors[0])),"模式切换按钮的渐变未绘制");
+                var label = (RectTransform)detail.Find("查看 3D/按钮文字");
+                Check(Mathf.Abs(label.anchorMin.x + label.anchorMax.x - 1) < .001f,"模式切换按钮未居中");
+                CheckEnamelMotion(detail,camera,id,touch);
+                CheckModelView(detail,detail.Find("查看 3D").GetComponent<Button>(),camera,folder,id,touch);
+                detail.Find("返回花册").GetComponent<Button>().onClick.Invoke();
+                Check(!visit.Album.Contains(id) && count.text.EndsWith("0 / 4"),"隐藏预览改变了收藏进度");
             }
             Check(grid.GetComponentsInChildren<AlbumAtmosphere>().Length == 6,"目录应有六处常驻动效");
             CheckTitle(grid.Find("册名").GetComponent<InkTitle>(),camera,"Album");
@@ -216,7 +234,8 @@ public static class SpringPageReview
                 open.onClick.Invoke();
                 Check(count.text.EndsWith((++n) + " / 4"),"读取已保存进度失败");
                 var card = grid.Find(character.referenceName).GetComponent<Button>();
-                Check(card.interactable && card.GetComponentInChildren<Image>().sprite == character.portrait.sprite,"卡位立绘错误");
+                var cardPortrait = card.transform.Find("笺纸/季景/立绘").GetComponent<Image>();
+                Check(card.interactable && cardPortrait.isActiveAndEnabled && cardPortrait.sprite == character.portrait.sprite,"卡位立绘错误");
                 card.onClick.Invoke();
                 Canvas.ForceUpdateCanvases();
                 var scenery=detail.GetComponentInChildren<AlbumScenery>();
@@ -228,9 +247,19 @@ public static class SpringPageReview
                     detail.Find("立绘").GetComponent<Image>().sprite == character.portrait.sprite &&
                     detail.Find("角色花笺/花语").GetComponent<Text>().text == character.excerpt,"详情映射错误");
                 if (n == 1) Capture(camera,folder,"album-detail");
+                var modelButton = detail.Find("查看 3D").GetComponent<Button>();
+                Check(modelButton.gameObject.activeSelf,
+                    "3D 入口与模型映射不一致");
+                if (modelButton.gameObject.activeSelf)
+                {
+                    CheckModelView(detail,modelButton,camera,folder,character.referenceName,touch);
+                    // Also leave the detail page directly from 3D.
+                    modelButton.onClick.Invoke();
+                }
                 if (n == 2 || n == 3) Capture(camera,folder,"album-detail-" + character.referenceName);
                 if (character.referenceName == "winter_xueling") Capture(camera,folder,"album-detail-winter");
                 detail.Find("返回花册").GetComponent<Button>().onClick.Invoke();
+                Check(!detail.Find("模型展窗").GetComponent<RawImage>().texture,"返回花册未释放模型画面");
                 if (n == 1 || n == visit.characters.Length) Capture(camera,folder,"album-" + n);
             }
             var artFrames = Path.GetFullPath("Library/AlbumAtmosphereFrames");
@@ -261,6 +290,103 @@ public static class SpringPageReview
             visit.Album = live;
             foreach (var character in visit.characters) PlayerPrefs.DeleteKey(prefix + character.referenceName);
             PlayerPrefs.Save();
+        }
+    }
+
+    static void CheckModelView(Transform detail,Button button,Camera camera,string folder,string id,
+        UnityEngine.EventSystems.PointerEventData touch)
+    {
+        button.onClick.Invoke();
+        var viewer=detail.Find("模型展窗").GetComponent<AlbumModelViewer>();
+        var output=viewer.GetComponent<RawImage>();
+        if (!viewer.gameObject.activeInHierarchy || detail.Find("立绘").gameObject.activeSelf)
+            throw new System.InvalidOperationException("卡片未切入 3D");
+        var small=new Texture2D(64,64,TextureFormat.RGBA32,false);
+        Color32[] ReadModel()
+        {
+            var frame=output.texture as RenderTexture;
+            if (!frame || !frame.IsCreated()) throw new System.InvalidOperationException("模型相机没有输出");
+            var target=RenderTexture.GetTemporary(64,64,0,RenderTextureFormat.ARGB32);
+            var previous=RenderTexture.active;
+            try {
+                Graphics.Blit(frame,target);
+                RenderTexture.active=target;
+                small.ReadPixels(new Rect(0,0,64,64),0,0);
+                small.Apply();
+                var pixels=small.GetPixels32();
+                int covered=System.Array.FindAll(pixels,c=>c.a>180).Length;
+                if (covered<380 || covered>3600) throw new System.InvalidOperationException("模型轮廓异常 "+covered);
+                return pixels;
+            } finally { RenderTexture.active=previous; RenderTexture.ReleaseTemporary(target); }
+        }
+        void Changed(Color32[] first,Color32[] second)
+        {
+            int changed=0;
+            for(int i=0;i<first.Length;i++)
+                if(Mathf.Abs(first[i].r-second[i].r)+Mathf.Abs(first[i].a-second[i].a)>12) changed++;
+            if (changed<100) throw new System.InvalidOperationException("模型视角或缩放没有变化");
+        }
+        try
+        {
+            var front=ReadModel();
+            Capture(camera,folder,id+"-model-front");
+            touch.pointerId=1;
+            touch.position=new Vector2(140,200);
+            viewer.OnPointerDown(touch);
+            touch.position+=new Vector2(150,0);
+            viewer.OnDrag(touch);
+            var dragged=ReadModel();
+            Changed(front,dragged);
+            var other=new UnityEngine.EventSystems.PointerEventData(Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>()) {pointerId=2,position=touch.position+new Vector2(60,0)};
+            viewer.OnPointerDown(other);
+            other.position+=new Vector2(32,0);
+            viewer.OnDrag(other);
+            Changed(dragged,ReadModel());
+            viewer.OnPointerUp(other);
+            viewer.OnPointerUp(touch);
+            foreach (var pose in new[]{(35,"angle"),(90,"side"),(180,"back")})
+            {
+                viewer.SetView(pose.Item1,0,1);
+                Changed(front,ReadModel());
+                Capture(camera,folder,id+"-model-"+pose.Item2);
+            }
+            button.onClick.Invoke();
+            if (output.texture || !detail.Find("立绘").gameObject.activeSelf)
+                throw new System.InvalidOperationException("切回立绘失败");
+            Debug.Log(id + " 3D front, side, reverse, drag, pinch and 2D return verified");
+        } finally { Object.DestroyImmediate(small); }
+    }
+
+    static void CheckEnamelMotion(Transform detail,Camera camera,string id,UnityEngine.EventSystems.PointerEventData touch)
+    {
+        var button=detail.Find("查看 3D").GetComponent<FlowerButton>();
+        var air=detail.GetComponentInChildren<AlbumAtmosphere>();
+        var full=camera.targetTexture;
+        var small=RenderTexture.GetTemporary(432,960,24);
+        string folder=Path.GetFullPath("Library/EnamelFrames/"+id);
+        Directory.CreateDirectory(folder);
+        try
+        {
+            camera.targetTexture=small;
+            for (int i=0;i<72;i++)
+            {
+                float t=i/24f;
+                Shader.SetGlobalFloat("_AlbumReviewClock",t+.15f);
+                air.Sample(t);
+                if (i==52) button.OnPointerDown(touch);
+                if (i>=52 && i<=62) button.flare.Sample((i-52)/24f);
+                if (i==57) button.OnPointerUp(touch);
+                Capture(camera,folder,"frame-"+i.ToString("D3"));
+                if (i==54 && (!button.flare.isActiveAndEnabled || button.flare.canvasRenderer.GetMesh().vertexCount<9))
+                    throw new System.InvalidOperationException("按钮金屑未绘制");
+            }
+        }
+        finally
+        {
+            Shader.SetGlobalFloat("_AlbumReviewClock",0);
+            button.OnPointerUp(touch);
+            camera.targetTexture=full;
+            RenderTexture.ReleaseTemporary(small);
         }
     }
 
@@ -295,3 +421,4 @@ public static class SpringPageReview
         }
     }
 }
+

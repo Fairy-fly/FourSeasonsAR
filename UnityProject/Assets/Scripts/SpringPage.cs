@@ -43,21 +43,22 @@ public sealed partial class SpringPage : MonoBehaviour
         coverImage.texture = cover;
         coverImage.raycastTarget = false;
         albumPaper = Bounds(frame,"花册底纸",0,0,1,1).gameObject;
-        Paint((RectTransform)albumPaper.transform,Parchment);
+        albumGround = albumPaper.AddComponent<AlbumScenery>();
+        albumWash = Bounds(albumGround.rectTransform,"场景罩染",0,0,1,1).gameObject.AddComponent<Image>();
+        albumWash.raycastTarget = false;
+        SetAlbumGround("Silk");
         safe = Bounds(frame,"安全区域",0,0,1,1);
         var heading = Bounds(safe,"封面",0,0,1,1);
         home = heading.gameObject;
         home.AddComponent<FlowerPageEntrance>();
         var title=Bounds(heading,"书名",.056f,.801f,.944f,.955f).gameObject.AddComponent<InkTitle>();
         title.Configure(Resources.Load<Texture2D>("Album/title-home"),Ink,new Color32(194,120,116,255),1.45f);
-        var divider = Bounds(heading,"题签",.26f,.788f,.74f,.808f);
-        Ornament(divider);
-        Label(Bounds(heading,"副题",.06f,.746f,.94f,.786f),"四季角色卡 · 2.5D AR 体验",20,Ink);
+        Label(Bounds(heading,"副题",.06f,.769f,.94f,.809f),"四季角色卡 · 2.5D AR 体验",20,Ink);
 
         var start = Fit(heading,"开始扫描",.22f,.078f,.78f,.158f,4.05f);
         var startSurface = Surface(start,Plum);
         Surface(Inset(start,"描金",2.6f), Honey);
-        Surface(Inset(start,"漆面",3.6f), Plum);
+        Surface(Inset(start,"漆面",3.6f), Plum).SetGradient(new Color32(140,73,91,255), new Color32(86,39,65,255));
         Label(Bounds(start,"按钮文字",.08f,.08f,.81f,.92f),"开始扫描",29,Parchment);
         Blossom(Box(start,"樱印",.855f,.5f,25,25));
         MakeButton(start,startSurface,visit.Begin);
@@ -69,7 +70,7 @@ public sealed partial class SpringPage : MonoBehaviour
         scanner.AddComponent<FlowerPageEntrance>();
         back = Box(scan,"返回封面",0,1,52,52);
         back.anchoredPosition = new Vector2(52,-51);
-        MakeButton(back,Surface(back,Glass),visit.Home);
+        MakeButton(back,Surface(back,Glass).SetGradient(new Color32(90,72,76,218),new Color32(42,32,45,229)),visit.Home);
         foreach (int direction in new[]{-1,1})
         {
             var stroke = Box(back,"箭头",.48f,.5f,16,2.6f);
@@ -101,9 +102,10 @@ public sealed partial class SpringPage : MonoBehaviour
         Surface(paper,Honey,true);
         Surface(Inset(paper,"笺纸",1.5f),Parchment,true);
         Surface(Inset(paper,"内框",5),new Color32(224,197,164,255),true);
-        Surface(Inset(paper,"内页",6),Parchment,true);
+        Surface(Inset(paper,"内页",6),Parchment,true)
+            .SetGradient(new Color32(255,252,242,255),new Color32(245,230,217,255));
+        PaperCorners(paper);
         Blossom(Bounds(paper,"折枝樱花",.71f,.59f,1.015f,1.04f),true);
-        Ornament(Bounds(paper,"花钿",.32f,.42f,.68f,.51f));
         var petals = new Image[10];
         var spring = System.Array.Find(visit.characters, item => item.referenceName == SpringVisit.ReferenceName);
         for (int i = 0; i < petals.Length; i++)
@@ -137,6 +139,7 @@ public sealed partial class SpringPage : MonoBehaviour
 
     public void ShowScanner(bool scanning)
     {
+        if (modelViewer) modelViewer.Close();
         tracked = false;
         guides.alpha = 1;
         story.SetActive(false);
@@ -243,19 +246,29 @@ public sealed partial class SpringPage : MonoBehaviour
         return rect;
     }
 
+    static void PaperCorners(RectTransform paper)
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            bool left = i == 0;
+            var mark = Box(paper,"回纹角",left ? 0 : 1,left ? 1 : 0,23,16);
+            mark.anchoredPosition = left ? new Vector2(23,-15) : new Vector2(-23,15);
+            if (!left) mark.localRotation = Quaternion.Euler(0,0,180);
+            Color gold = new Color32(181,142,94,182);
+            Line(mark,0,.88f,.92f,.94f,gold);
+            Line(mark,0,.30f,.045f,.94f,gold);
+            Line(mark,.16f,.46f,.20f,.72f,gold);
+            Line(mark,.16f,.66f,.46f,.72f,gold);
+            Line(mark,.42f,.50f,.46f,.72f,gold);
+        }
+    }
+
     static void Blossom(RectTransform rect,bool sprig=false)
     {
         var blossom=rect.gameObject.AddComponent<SpringBlossoms>();
         blossom.sprig=sprig;
         blossom.raycastTarget=false;
         blossom.SetVerticesDirty();
-    }
-
-    static void Ornament(RectTransform rect)
-    {
-        Line(rect,0,.47f,.43f,.55f,Honey);
-        Line(rect,.57f,.47f,1,.55f,Honey);
-        Blossom(Box(rect,"花钿",.5f,.5f,12,12));
     }
 
     static SpringSurface Surface(RectTransform rt,Color color,bool paper=false)

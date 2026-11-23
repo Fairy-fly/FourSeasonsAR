@@ -41,19 +41,22 @@ public sealed class AlbumAtmosphere : MaskableGraphic
         float unit = Mathf.Min(r.width,r.height);
         if (unit <= 0) return;
         Color tint = Tints[(int)motif];
-        if (motif == Motif.Pearl || motif == Motif.Star)
-            Foil(mesh,r,Mathf.Repeat(phase / 5.6f + (motif == Motif.Star ? .45f : 0),1),tint);
-        for (int i=0;i<12;i++)
+        bool hidden = motif == Motif.Pearl || motif == Motif.Star;
+        bool marginLights = hidden && r.height > r.width;
+        if (hidden && !marginLights)
+            Foil(mesh,r,Mathf.Repeat(phase / 8.6f + (motif == Motif.Star ? .45f : 0),1),tint);
+        for (int i=0;i<6;i++)
         {
-            float t = Mathf.Repeat(phase*(.105f+.012f*(i%3)) + i*.618f,1);
+            float t = Mathf.Repeat(phase*(.073f+.009f*(i%3)) + i*.618f,1);
             float wave = Mathf.Sin(Mathf.PI*t);
             float lane = Mathf.Repeat(i*.382f+.11f,1);
             float drift = .07f*Mathf.Sin(2*Mathf.PI*t+i);
             float x = .09f+.82f*lane + drift;
+            if (marginLights) x = (i%2 == 0 ? .04f : .80f) + .14f*lane + .18f*drift;
             float y = motif == Motif.Pond ? .18f+t*.71f : .94f-t*.88f;
             Vector2 c = new(r.xMin+r.width*x,r.yMin+r.height*y);
             float size = unit*(.013f + .004f*(i%3));
-            tint.a = .85f*wave;
+            tint.a = .56f*wave;
             switch (motif)
             {
                 case Motif.Petal:
@@ -71,7 +74,7 @@ public sealed class AlbumAtmosphere : MaskableGraphic
                     break;
                 default:
                     c.y = r.yMin + r.height*(.12f + .76f*Mathf.Repeat(i*.713f,.99f) + .04f*wave);
-                    Shine(mesh,c,size*(.58f+1.45f*wave),tint);
+                    Shine(mesh,c,size*(.58f+1.45f*wave)*(marginLights ? .52f : 1),tint);
                     break;
             }
         }
@@ -91,7 +94,7 @@ public sealed class AlbumAtmosphere : MaskableGraphic
         int n=m.currentVertCount;
         for(int k=-1;k<=1;k++)
         {
-            tint.a=k==0 ? .19f : 0;
+            tint.a=k==0 ? .08f : 0;
             float band=x+.08f*k;
             m.AddVert(new Vector2(r.xMin+r.width*Mathf.Clamp01(band),r.yMin),tint,Vector2.zero);
             m.AddVert(new Vector2(r.xMin+r.width*Mathf.Clamp01(band+.20f),r.yMax),tint,Vector2.zero);

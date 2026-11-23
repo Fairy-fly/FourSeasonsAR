@@ -14,6 +14,12 @@ public static class SpringSample
     const string Scene = "Assets/Scenes/SpringVisit.unity";
 
     // 已生成的场景、角色预制体和参考图库可直接在 Inspector 中编辑和重建。
+    public static void ReviewAndBuildApk()
+    {
+        SpringPageReview.Render();
+        BuildApk();
+    }
+
     public static void BuildApk()
     {
         CheckTrackingPolicy();
@@ -57,7 +63,30 @@ public static class SpringSample
         if (visit.characters[0].portrait.sprite.texture.height != 1777 ||
             Mathf.Abs(visit.characters[0].portrait.sprite.bounds.size.y - .09547f) > .0002f)
             throw new BuildFailedException("春知意高清立绘尺寸不正确");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.7");
+        foreach (var hidden in new[]{AlbumModelViewer.TimeKeeper,AlbumModelViewer.StarDreamer})
+        {
+            if (!ids.Add(hidden) || !Resources.Load<Sprite>("Gallery/"+hidden+"/Portrait"))
+                throw new BuildFailedException("隐藏席位或卡面错误 " + hidden);
+        }
+        foreach (var id in ids)
+        {
+            if (!AlbumModelViewer.HasModel(id)) throw new BuildFailedException("缺少展窗入口 " + id);
+            string path = "Gallery/" + id + "/";
+            var prefab = Resources.Load<GameObject>(path + "Figure");
+            var filters = prefab ? prefab.GetComponentsInChildren<MeshFilter>() : null;
+            if (filters == null || filters.Length != 1 || !filters[0].sharedMesh)
+                throw new BuildFailedException("展示模型无效 " + path);
+            var mesh = filters[0].sharedMesh;
+            var triangles = mesh.GetIndexCount(0) / 3;
+            if (mesh.subMeshCount != 1 || triangles < 10000 || triangles > 72000 ||
+                !Resources.Load<Texture2D>(path + "Color") || !Resources.Load<Texture2D>(path + "Normal") ||
+                !Resources.Load<Texture2D>(path + "Surface"))
+                throw new BuildFailedException("展示模型预算或材质错误 " + path);
+            Debug.Log($"Gallery model OK {id}: {triangles} triangles");
+        }
+        var shader = Resources.Load<Shader>("Gallery/FigureStudio");
+        if (!shader || ShaderUtil.ShaderHasError(shader)) throw new BuildFailedException("花册着色器错误");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-FourSeasons-1.11");
     }
 
     public static void ConfigurePolish()

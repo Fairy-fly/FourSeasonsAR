@@ -6,6 +6,17 @@ using UnityEngine.UI;
 public sealed class SpringSurface : MaskableGraphic
 {
     public bool paper;
+    bool useGradient;
+    Color gradientEnd;
+
+    public SpringSurface SetGradient(Color start, Color end)
+    {
+        useGradient = true;
+        gradientEnd = end;
+        color = start;
+        SetVerticesDirty();
+        return this;
+    }
     protected SpringSurface() { useLegacyMeshGeneration = false; }
 
     protected override void OnPopulateMesh(VertexHelper mesh)
@@ -39,6 +50,18 @@ public sealed class SpringSurface : MaskableGraphic
                     float angle=(corner*90+i*3.75f)*Mathf.Deg2Rad;
                     mesh.AddVert(center+radius*new Vector2(Mathf.Cos(angle),Mathf.Sin(angle)),color,Vector2.zero);
                 }
+            }
+        }
+        if (useGradient)
+        {
+            var vertex = UIVertex.simpleVert;
+            for (int i = 0; i < mesh.currentVertCount; i++)
+            {
+                mesh.PopulateUIVertex(ref vertex,i);
+                float x = (vertex.position.x - rect.xMin) / rect.width;
+                float y = (rect.yMax - vertex.position.y) / rect.height;
+                vertex.color = Color.Lerp(color,gradientEnd,.76f*x + .24f*y);
+                mesh.SetUIVertex(vertex,i);
             }
         }
         int count=mesh.currentVertCount-1;
