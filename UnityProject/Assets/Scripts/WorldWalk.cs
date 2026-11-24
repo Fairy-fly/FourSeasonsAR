@@ -18,6 +18,7 @@ public sealed class WorldWalk : MonoBehaviour
     Transform actor;
     FlowerCompanion body;
     CompanionPetals effects;
+    FootContactShade shade;
     LineRenderer flower;
     Material markerInk;
     readonly List<ARRaycastHit> hits=new();
@@ -27,6 +28,8 @@ public sealed class WorldWalk : MonoBehaviour
     int finger=-1, generation;
     bool active, pending, dragging, downOnActor, pair, moving, hasDrag, paused, requireLift;
     Vector2 lastDrag;
+    bool faceVisitor;
+    const float TurnDegreesPerSecond=115;
     public bool Active=>active;
     public string Role=>role;
     const float FootMargin=.035f;
@@ -64,7 +67,7 @@ public sealed class WorldWalk : MonoBehaviour
     {
         if(body){body.Walking=0;body.Lift=0;}
         if(dragging && actor && surface && hasDrag) actor.position=World(lastDrag);
-        walkSpeed=0;moving=dragging=hasDrag=pair=downOnActor=false;finger=-1;
+        walkSpeed=0;faceVisitor=false;moving=dragging=hasDrag=pair=downOnActor=false;finger=-1;
     }
     public void ResetSite()
     {
@@ -171,6 +174,8 @@ public sealed class WorldWalk : MonoBehaviour
         body=actor.gameObject.AddComponent<FlowerCompanion>();
         body.Initialize(role,.26f);
         body.EnableGroundGait();
+        shade=actor.gameObject.AddComponent<FootContactShade>();
+        shade.Initialize(body,surface.transform);
         effects=anchor.gameObject.AddComponent<CompanionPetals>();
         var c=System.Array.Find(visit.characters,item=>item.referenceName==role);
         effects.Initialize(body,visit.arCamera,c.petal);
@@ -215,7 +220,7 @@ public sealed class WorldWalk : MonoBehaviour
         }
         if(!surface || !anchor){ResetSite();return;}
         var plane=Merged(surface);
-        if(plane!=surface){CancelGesture();surface=plane;}
+        if(plane!=surface){CancelGesture();surface=plane;shade.Floor=surface.transform;}
         if(surface.trackingState!=TrackingState.Tracking || anchor.trackingState!=TrackingState.Tracking)
         {
             CancelGesture();requireLift=true;actor.gameObject.SetActive(false);flower.gameObject.SetActive(false);
@@ -240,13 +245,24 @@ public sealed class WorldWalk : MonoBehaviour
         }
         if(pair){CancelGesture();requireLift=true;return;}
         if(touches.Count==1)HandleTouch(touches[0]);
+        if(faceVisitor)
+        {
+            var direction=Vector3.ProjectOnPlane(visit.arCamera.transform.position-actor.position,surface.transform.up);
+            if(direction.sqrMagnitude<.000001f)faceVisitor=false;
+            else
+            {
+                var heading=Quaternion.LookRotation(direction,surface.transform.up);
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,heading,TurnDegreesPerSecond*Time.deltaTime);
+                faceVisitor=Quaternion.Angle(actor.rotation,heading)>.2f;
+            }
+        }
         if(moving)
         {
             var from=Local(actor.position);
             float remaining=Vector2.Distance(from,goal);
             var direction=Vector3.ProjectOnPlane(World(goal)-actor.position,surface.transform.up);
             if(direction.sqrMagnitude>.000001f)
-                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),260*Time.deltaTime);
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),TurnDegreesPerSecond*Time.deltaTime);
             float alignment=Vector3.Dot(actor.forward,direction.normalized);
             float topSpeed=body.Height*.39f*scale;
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
@@ -280,7 +296,7 @@ public sealed class WorldWalk : MonoBehaviour
         bool valid=Hit(pos,out _,out var hit);
         if(downOnActor && !dragging && Time.time-downAt>.32f && valid)
         {
-            dragging=true;body.Lift=1;lastDrag=Local(actor.position);hasDrag=true;
+            faceVisitor=false;dragging=true;body.Lift=1;lastDrag=Local(actor.position);hasDrag=true;
             grabOffset=lastDrag-Local(hit.position);
         }
         if(dragging)
@@ -296,8 +312,9 @@ public sealed class WorldWalk : MonoBehaviour
         if(touch.phase!=UnityEngine.InputSystem.TouchPhase.Ended)return;
         finger=-1;
         if(Vector2.Distance(pos,down)>Screen.width*.035f || visit.page.WorldConsumes(pos))return;
-        if(downOnActor){Face(visit.arCamera.transform.position);body.Gait.Reset();body.Respond();effects.Respond();return;}
+        if(downOnActor){faceVisitor=true;body.Respond();effects.Respond();return;}
         if(!valid){visit.page.WorldHint("请选择同一块地面或桌面内的位置");return;}
+        faceVisitor=false;
         goal=SafeEnd(surface.boundary,Local(actor.position),Local(hit.position),FootMargin*scale);
         Marker(World(goal));goalAt=Time.time+.8f;moving=true;
         visit.page.WorldHint("轻触人物，她会回应你");

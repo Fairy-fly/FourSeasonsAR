@@ -9,7 +9,7 @@ public sealed class PlantedWalk
     {
         public Transform thigh, shin, ankle;
         public Vector3 restAnkle, contact;
-        public Quaternion restOrientation;
+        public Quaternion restOrientation, plantedHeading;
         public Quaternion thighRest, shinRest, ankleRest;
     }
 
@@ -18,6 +18,10 @@ public sealed class PlantedWalk
     readonly float height;
     Vector3 previous, swingFrom, swingTo;
     float phase;
+    Quaternion priorHeading, swingHeading;
+    bool pivotStep;
+    Quaternion Heading => anchor ? Quaternion.Inverse(anchor.rotation)*root.rotation : root.rotation;
+    public float AnkleRestHeight(int i) => legs[i].restAnkle.y;
     int swing = -1, next;
     bool engaged, firstStep;
     public event Action<Vector3> Landed;
@@ -56,7 +60,12 @@ public sealed class PlantedWalk
         firstStep=true;
         engaged=false;
         Sway=0;
-        for(int i=0;i<2;i++)legs[i].contact=Rest(i);
+        priorHeading=Heading;
+        for(int i=0;i<2;i++)
+        {
+            legs[i].contact=Rest(i);
+            legs[i].plantedHeading=Heading;
+        }
     }
 
     public float Advance(float dt,bool walking)
@@ -64,9 +73,12 @@ public sealed class PlantedWalk
         Vector3 position=InAnchor(root.position);
         Vector3 travel=position-previous;
         previous=position;
+        Quaternion heading=Heading;
+        float turn=Quaternion.Angle(heading,priorHeading);
+        priorHeading=heading;
         float unit=height*root.lossyScale.y;
         if(travel.magnitude>.65f*unit){Reset();return 0;}
-        engaged|=walking;
+        engaged|=walking || turn>.05f;
         if(!engaged)return 0;
         float span=.086f*unit;
         if(swing<0)
@@ -78,12 +90,18 @@ public sealed class PlantedWalk
                 next=other;
                 error=Vector3.Distance(legs[next].contact,Rest(next));
             }
-            if(error>(walking?(firstStep?.10f:.65f)*span:.009f*unit))
+            float crossedAngle=Quaternion.Angle(heading,legs[next].plantedHeading);
+            if(crossedAngle>15 || error>(walking?(firstStep?.10f:.65f)*span:.009f*unit))
             {
                 firstStep=false;
                 swing=next;
                 swingFrom=legs[swing].contact;
-                swingTo=Rest(swing)+(walking?travel.normalized*span*1.48f:Vector3.zero);
+                pivotStep=crossedAngle>15;
+                // Predict the next contact on the turning arc, preserving each foot's side.
+                float yaw=Vector3.SignedAngle(legs[swing].plantedHeading*Vector3.forward,heading*Vector3.forward,heading*Vector3.up);
+                swingHeading=Quaternion.AngleAxis(pivotStep?Mathf.Clamp(yaw,-13,13):0,heading*Vector3.up)*heading;
+                var arcOffset=swingHeading*Quaternion.Inverse(heading)*(Rest(swing)-position);
+                swingTo=position+arcOffset+(walking?travel.normalized*span*1.48f:Vector3.zero);
                 phase=0;
             }
         }
@@ -91,10 +109,12 @@ public sealed class PlantedWalk
         {
             // Advance by measured ground travel. Complete an unfinished step gently when braking.
             float advance=walking ? Mathf.Max(travel.magnitude/span,dt*1.3f) : dt*4.5f;
+            if(pivotStep)advance=Mathf.Max(advance,dt*6f);
             phase=Mathf.Min(1,phase+advance);
             if(phase>=1)
             {
                 legs[swing].contact=swingTo;
+                legs[swing].plantedHeading=swingHeading;
                 var sole=root.InverseTransformPoint(InWorld(swingTo));
                 sole.y=0;
                 Landed?.Invoke(root.TransformPoint(sole));
@@ -148,7 +168,9 @@ public sealed class PlantedWalk
             leg.thigh.rotation=Quaternion.FromToRotation(leg.shin.position-hip,knee-hip)*leg.thigh.rotation;
             leg.shin.rotation=Quaternion.FromToRotation(leg.ankle.position-leg.shin.position,hip+direction*d-leg.shin.position)*leg.shin.rotation;
             // A planted sole stays parallel to the floor while the knee bends above it.
-            leg.ankle.rotation=root.rotation*leg.restOrientation;
+            var footHeading=leg.plantedHeading;
+            if(i==swing)footHeading=Quaternion.Slerp(footHeading,swingHeading,Mathf.SmoothStep(0,1,phase));
+            leg.ankle.rotation=(anchor?anchor.rotation:Quaternion.identity)*footHeading*leg.restOrientation;
         }
     }
 }

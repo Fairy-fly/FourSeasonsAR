@@ -25,8 +25,8 @@ public static class SpringGaitReview
             Vector3[] soles={gait.Ankle(0),gait.Ankle(1)};
             Vector3[] start={soles[0],soles[1]};
             float drift=0, rise=0;
-            int held=0, previousSwing=-1;
-            string dir=Path.GetFullPath("../reports/evidence/spring-gait-alpha3");
+            int held=0, previousSwing=-1, turnStart=0, turnContacts=0;
+            string dir=Path.GetFullPath("../reports/evidence/spring-gait-alpha4");
             Directory.CreateDirectory(dir);
             camera.targetTexture=frame;camera.orthographic=true;camera.orthographicSize=.153f;
             camera.nearClipPlane=.01f;camera.farClipPlane=2;camera.clearFlags=CameraClearFlags.SolidColor;
@@ -40,13 +40,22 @@ public static class SpringGaitReview
             proxy.AddComponent<MeshFilter>().sharedMesh=mesh;
             proxy.AddComponent<MeshRenderer>().sharedMaterial=skin.sharedMaterial;
             skin.forceRenderingOff=true;
+            var floor=new GameObject("Floor").transform;
+            floor.SetParent(camera.transform,false);
+            floor.rotation=Quaternion.identity;
+            var shadow=actor.AddComponent<FootContactShade>();
+            shadow.Initialize(body,floor);
             int count=0;
-            for(int i=0;i<165;i++)
+            for(int i=0;i<255;i++)
             {
                 const float dt=1f/30;
-                body.Walking=i<120?1:0;
+                bool pivot=i>=150 && i<195;
+                if(pivot)actor.transform.Rotate(Vector3.up,4f);
+                body.Walking=i<120 || (i>=195 && i<228)?1:0;
                 actor.transform.position+=actor.transform.forward*(.10f*dt*body.Walking);
                 body.Sample(i*dt,5,dt);
+                if(i==149)turnStart=stamps;
+                if(i==194)turnContacts=stamps-turnStart;
                 int swing=gait.SwingFoot;
                 for(int side=0;side<2;side++)
                 {
@@ -70,13 +79,15 @@ public static class SpringGaitReview
                 camera.transform.LookAt(focus);
                 skin.BakeMesh(mesh);
                 if(i==0)Debug.Log($"Baked mesh bounds={mesh.bounds} skin scale={skin.transform.lossyScale:F4}");
+                floor.SetPositionAndRotation(new Vector3(60,0,0),Quaternion.identity);
+                shadow.Draw();
                 camera.Render();
                 RenderTexture.active=frame;
                 pixels.ReadPixels(new Rect(0,0,frame.width,frame.height),0,0);pixels.Apply();
                 File.WriteAllBytes(Path.Combine(dir,$"walk-{count++:D3}.jpg"),pixels.EncodeToJPG(91));
             }
-            Debug.Log($"Spring gait: stance drift={drift:F5} m, peak frame rise={rise:F5} m, contacts={stamps}, frames={count}");
-            if(stamps<5 || stamps>32 || drift>.003f || rise<.00035f || gait.SwingFoot!=-1)
+            Debug.Log($"Spring gait: stance drift={drift:F5} m, peak frame rise={rise:F5} m, contacts={stamps}, pivot contacts={turnContacts}, frames={count}");
+            if(turnContacts<3 || stamps<5 || stamps>45 || drift>.003f || rise<.00035f || gait.SwingFoot!=-1)
                 throw new InvalidOperationException("Spring gait failed contact, clearance or stopping checks");
         }
         finally
