@@ -53,7 +53,7 @@ public sealed partial class SpringPage : MonoBehaviour
         home.AddComponent<FlowerPageEntrance>();
         var title=Bounds(heading,"书名",.056f,.801f,.944f,.955f).gameObject.AddComponent<InkTitle>();
         title.Configure(Resources.Load<Texture2D>("Album/title-home"),Ink,new Color32(194,120,116,255),1.45f);
-        Label(Bounds(heading,"副题",.06f,.769f,.94f,.809f),"四季角色卡 · 2.5D AR 体验",20,Ink);
+        Label(Bounds(heading,"副题",.06f,.769f,.94f,.809f),"四季角色卡 · 3D AR 体验",20,Ink);
 
         var start = Fit(heading,"开始扫描",.22f,.078f,.78f,.158f,4.05f);
         var startSurface = Surface(start,Plum);
@@ -126,6 +126,7 @@ public sealed partial class SpringPage : MonoBehaviour
         BuildAlbum(scan);
         BuildEncounters();
         BuildWorldPage();
+        BuildMovementSettings(heading);
         ShowScanner(false);
         UpdateLayout();
     }
@@ -141,6 +142,7 @@ public sealed partial class SpringPage : MonoBehaviour
 
     public void ShowScanner(bool scanning)
     {
+        if(movementSettings)movementSettings.gameObject.SetActive(false);
         if (modelViewer) modelViewer.Close();
         if(bubble) bubble.gameObject.SetActive(false);
         if(flight) flight.enabled=false;

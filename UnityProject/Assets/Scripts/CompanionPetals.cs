@@ -1,7 +1,7 @@
 using UnityEngine;
 using Kind=CompanionProfile.Kind;
 
-// Footprints and flying particles stay in the placement anchor's frame.
+// The trail and flying particles stay in the placement anchor's frame.
 [DefaultExecutionOrder(50)]
 public sealed class CompanionPetals : MonoBehaviour
 {
@@ -15,6 +15,8 @@ public sealed class CompanionPetals : MonoBehaviour
     Texture2D generatedTexture;
     SpriteRenderer lantern;
     float respondAt=-10;
+    Vector3 trailSource;
+    bool trailStarted;
     int cursor;
 
     public void Initialize(FlowerCompanion value, Camera camera, Sprite seasonSprite)
@@ -26,7 +28,8 @@ public sealed class CompanionPetals : MonoBehaviour
             generated=CreateLight(style);
         airInk=generated ? generated : seasonSprite;
         floorInk=seasonSprite ? seasonSprite : generated;
-        figure.Gait.Landed+=Stamp;
+        if(figure.Gait!=null)figure.Gait.Landed+=Stamp;
+
         for(int i=0;i<ink.Length;i++)
         {
             var go=new GameObject("季节印记");
@@ -83,6 +86,22 @@ public sealed class CompanionPetals : MonoBehaviour
 
     void Stamp(Vector3 sole)=>Emit(sole+figure.transform.up*.001f,false);
 
+    void UpdateTrail()
+    {
+        if(figure.Glide<.10f && !figure.Held){trailStarted=false;return;}
+        Vector3 point=figure.transform.position;
+        if(!trailStarted)
+        {
+            trailStarted=true;
+            trailSource=point;
+            return;
+        }
+        float distance=.044f*figure.transform.lossyScale.y;
+        if((point-trailSource).sqrMagnitude<distance*distance)return;
+        trailSource=point;
+        Emit(point+figure.transform.up*.002f,false);
+    }
+
     void LateUpdate()
     {
         if(!figure || !figure.gameObject.activeInHierarchy)
@@ -90,8 +109,10 @@ public sealed class CompanionPetals : MonoBehaviour
             foreach(var r in ink)if(r)r.gameObject.SetActive(false);
             if(lantern)lantern.enabled=false;
             respondAt=-10;
+            trailStarted=false;
             return;
         }
+        if(figure.Gait==null)UpdateTrail();
         Kind style=figure.Profile.Style;
         float physicalScale=figure.transform.lossyScale.y;
         float delay=Time.time-respondAt;
@@ -128,7 +149,7 @@ public sealed class CompanionPetals : MonoBehaviour
             if(t>=1){r.gameObject.SetActive(false);continue;}
             Vector3 offset=air?AirPath(style,t,i):Vector3.zero;
             float diameter=air?.016f:.030f;
-            if(style==Kind.Summer && !air)diameter*=.4f+t*2.5f;
+            if(style==Kind.Summer && !air)diameter*=.4f+t*2.0f;
             r.transform.localPosition=origin[i]+physicalScale*offset;
             r.transform.localScale=Vector3.one*(physicalScale*diameter/Mathf.Max(.001f,r.sprite.bounds.size.x));
             if(air)r.transform.rotation=lens.transform.rotation*Quaternion.Euler(0,0,t*150+i*23);
@@ -176,6 +197,7 @@ public sealed class CompanionPetals : MonoBehaviour
     void OnDestroy()
     {
         if(figure && figure.Gait!=null)figure.Gait.Landed-=Stamp;
+
         if(generated)Destroy(generated);
         if(generatedTexture)Destroy(generatedTexture);
     }

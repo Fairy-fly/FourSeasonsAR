@@ -17,7 +17,9 @@ public sealed class WorldWalk : MonoBehaviour
     Transform actor;
     FlowerCompanion body;
     CompanionPetals effects;
+    HoverAura aura;
     FootContactShade shade;
+    bool useWalking;
     LineRenderer flower;
     Material markerInk;
     readonly List<ARRaycastHit> hits=new();
@@ -39,7 +41,7 @@ public sealed class WorldWalk : MonoBehaviour
 
     public void Open(SpringVisit owner,string id)
     {
-        visit=owner;role=id;
+        visit=owner;role=id;useWalking=MovementPreference.ExperimentalWalk;
         var origin=owner.images.gameObject;
         planes=GetOrAdd<ARPlaneManager>(origin);
         planes.requestedDetectionMode=PlaneDetectionMode.Horizontal;
@@ -68,7 +70,7 @@ public sealed class WorldWalk : MonoBehaviour
 
     void CancelGesture()
     {
-        if(body){body.Walking=0;body.Lift=0;}
+        if(body){SetDriving(0);SetHeld(false);}
         if(dragging && actor && surface && hasDrag) actor.position=World(lastDrag);
         walkSpeed=0;faceVisitor=false;moving=dragging=hasDrag=pair=downOnActor=false;finger=-1;
     }
@@ -178,8 +180,9 @@ public sealed class WorldWalk : MonoBehaviour
         actor.position=World(point);
         var forward=Vector3.ProjectOnPlane(actor.forward,surface.transform.up);
         if(forward.sqrMagnitude>.000001f)actor.rotation=Quaternion.LookRotation(forward,surface.transform.up);
-        shade.Floor=surface.transform;
-        body.Gait.Reset();
+        if(aura)aura.Floor=surface.transform;
+        if(shade)shade.Floor=surface.transform;
+        body.Gait?.Reset();
         needsRecheck=false;
         boundaryInvalidAt=-1;
         visit.page.WorldHint("轻触人物，她会回应你");
@@ -224,7 +227,7 @@ public sealed class WorldWalk : MonoBehaviour
             ? Quaternion.LookRotation(towards,surface.transform.up) : anchor.transform.rotation;
         SpawnActor(hit.position,heading);
         flower.gameObject.SetActive(false);
-        visit.page.WorldHint("点地面让她走过去，长按人物可拖动");
+        visit.page.WorldHint(useWalking?"点地面让她走过去，长按可拖动":"点地面让她漂浮移动，长按可拖动");
         Debug.Log("World placed "+role);
     }
 
@@ -236,9 +239,18 @@ public sealed class WorldWalk : MonoBehaviour
         actor.localScale=Vector3.one*scale;
         body=actor.gameObject.AddComponent<FlowerCompanion>();
         body.Initialize(role,.26f);
-        body.EnableGroundGait();
-        shade=actor.gameObject.AddComponent<FootContactShade>();
-        shade.Initialize(body,surface.transform);
+        if(useWalking)
+        {
+            body.EnableGroundGait();
+            shade=actor.gameObject.AddComponent<FootContactShade>();
+            shade.Initialize(body,surface.transform);
+        }
+        else
+        {
+            body.EnableHover();
+            aura=actor.gameObject.AddComponent<HoverAura>();
+            aura.Initialize(body,surface.transform);
+        }
         var marks=new GameObject("同行花印");
         marks.transform.SetParent(anchor.transform,false);
         effects=marks.AddComponent<CompanionPetals>();
@@ -331,7 +343,7 @@ public sealed class WorldWalk : MonoBehaviour
                 float next=Mathf.Clamp(scale*diff.magnitude/Mathf.Max(1,lastPairDistance),.65f,1.5f);
                 if(FloorBoundary.Contains(surface.boundary,Local(actor.position),FootMargin*next)){scale=next;actor.localScale=Vector3.one*scale;}
                 actor.Rotate(surface.transform.up,-Mathf.DeltaAngle(lastPairAngle,angle),Space.World);
-                body.Gait.Reset();
+                body.Gait?.Reset();
             }
             lastPairDistance=diff.magnitude;lastPairAngle=angle;return;
         }
@@ -360,16 +372,27 @@ public sealed class WorldWalk : MonoBehaviour
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
             walkSpeed=Mathf.MoveTowards(walkSpeed,Mathf.Min(topSpeed,braking)*Mathf.InverseLerp(.25f,.94f,alignment),topSpeed*3*Time.deltaTime);
             var next=Vector2.MoveTowards(from,goal,Time.deltaTime*walkSpeed);
-            if(!FloorBoundary.CanTravel(surface.boundary,from,next,Clearance)){moving=false;body.Walking=0;walkSpeed=0;}
+            if(!FloorBoundary.CanTravel(surface.boundary,from,next,Clearance)){moving=false;SetDriving(0);walkSpeed=0;}
             else
             {
                 actor.position=World(next);
                 moving=(goal-next).sqrMagnitude>.000001f;
-                body.Walking=moving?1:0;
+                SetDriving(moving?walkSpeed/topSpeed:0);
                 if(!moving)walkSpeed=0;
             }
         }
         if(!moving && !dragging && Time.time>goalAt)flower.gameObject.SetActive(false);
+    }
+
+    void SetDriving(float amount)
+    {
+        body.Glide=amount;
+        body.Walking=useWalking && amount>.01f ? 1 : 0;
+    }
+    void SetHeld(bool held)
+    {
+        body.Held=held;
+        body.Lift=useWalking && held ? 1 : 0;
     }
 
     bool AllowNewTouch(int count)
@@ -387,7 +410,7 @@ public sealed class WorldWalk : MonoBehaviour
             if(visit.page.WorldConsumes(pos))return;
             finger=touch.touchId;down=pos;downAt=Time.time;
             downOnActor=Physics.Raycast(visit.arCamera.ScreenPointToRay(pos),out var h) && h.collider.GetComponentInParent<FlowerCompanion>()==body;
-            if(downOnActor){moving=false;walkSpeed=0;body.Walking=0;}
+            if(downOnActor){moving=false;walkSpeed=0;SetDriving(0);}
             return;
         }
         if(finger!=touch.touchId)return;
@@ -395,7 +418,7 @@ public sealed class WorldWalk : MonoBehaviour
         bool valid=Hit(pos,out _,out var hit);
         if(downOnActor && !dragging && Time.time-downAt>.32f && valid)
         {
-            faceVisitor=false;dragging=true;body.Lift=1;lastDrag=Local(actor.position);hasDrag=true;
+            faceVisitor=false;dragging=true;SetHeld(true);lastDrag=Local(actor.position);hasDrag=true;
             grabOffset=lastDrag-Local(hit.position);
         }
         if(dragging)
@@ -403,7 +426,7 @@ public sealed class WorldWalk : MonoBehaviour
             if(valid)
             {
                 lastDrag=FloorBoundary.ReachableEnd(surface.boundary,lastDrag,Local(hit.position)+grabOffset,Clearance);
-                actor.position=World(lastDrag)+surface.transform.up*.045f;Marker(World(lastDrag));
+                actor.position=World(lastDrag)+(useWalking?surface.transform.up*.045f:Vector3.zero);Marker(World(lastDrag));
             }
             if(touch.phase==UnityEngine.InputSystem.TouchPhase.Ended){CancelGesture();body.Respond();}
             return;

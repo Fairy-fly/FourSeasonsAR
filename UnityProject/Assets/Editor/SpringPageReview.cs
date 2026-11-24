@@ -41,6 +41,7 @@ public static class SpringPageReview
             Capture(camera,folder,"cover");
             CheckTitle(safe.Find("封面/书名").GetComponent<InkTitle>(),camera,"Home");
             CheckAlbum(page,safe,camera,folder);
+            CheckMovement(page,safe,camera,folder);
             page.ShowScanner(true);
             page.SetTracking(false,false,true);
             Capture(camera,folder,"scan");
@@ -73,6 +74,49 @@ public static class SpringPageReview
             RenderTexture.ReleaseTemporary(target);
         }
         Debug.Log("Spring UI editor review completed");
+    }
+
+    static void CheckMovement(SpringPage page,Transform safe,Camera camera,string folder)
+    {
+        var key=MovementPreference.Key;
+        bool stored=PlayerPrefs.HasKey(key);
+        int original=PlayerPrefs.GetInt(key);
+        var settings=safe.Find("移动设置");
+        var hover=settings.Find("漂浮");
+        var walk=settings.Find("步行");
+        try
+        {
+            PlayerPrefs.DeleteKey(key);
+            safe.Find("封面/设置").GetComponent<Button>().onClick.Invoke();
+            if(!settings.gameObject.activeSelf || MovementPreference.ExperimentalWalk ||
+                !hover.Find("笺纸/状态").gameObject.activeSelf ||
+                walk.Find("笺纸/说明").GetComponent<Text>().text!="实验功能 · 测试阶段")
+                throw new System.InvalidOperationException("Default movement and experimental label failed");
+            foreach(var text in settings.GetComponentsInChildren<Text>(true))
+            foreach(char glyph in text.text)
+                if(!char.IsWhiteSpace(glyph) && !page.readingFont.HasCharacter(glyph))
+                    throw new System.InvalidOperationException("Movement settings font missing "+glyph);
+            settings.GetComponent<FlowerPageEntrance>().SetProgress(1);
+            Capture(camera,folder,"movement-settings-hover");
+
+            walk.GetComponent<Button>().onClick.Invoke();
+            settings.Find("返回封面").GetComponent<Button>().onClick.Invoke();
+            safe.Find("封面/设置").GetComponent<Button>().onClick.Invoke();
+            if(!MovementPreference.ExperimentalWalk || !walk.Find("笺纸/状态").gameObject.activeSelf)
+                throw new System.InvalidOperationException("Experimental gait selection did not persist");
+            settings.GetComponent<FlowerPageEntrance>().SetProgress(1);
+            Capture(camera,folder,"movement-settings-walk");
+            hover.GetComponent<Button>().onClick.Invoke();
+            if(MovementPreference.ExperimentalWalk)throw new System.InvalidOperationException("Hover toggle failed");
+            settings.Find("返回封面").GetComponent<Button>().onClick.Invoke();
+        }
+        finally
+        {
+            if(stored)PlayerPrefs.SetInt(key,original);
+            else PlayerPrefs.DeleteKey(key);
+            PlayerPrefs.Save();
+        }
+        Debug.Log("Movement settings default, experimental label, persistence and glyphs passed");
     }
 
     static void CheckTitle(InkTitle title,Camera camera,string name)

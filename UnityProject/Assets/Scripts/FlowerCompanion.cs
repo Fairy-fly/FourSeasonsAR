@@ -6,11 +6,23 @@ public sealed class FlowerCompanion : MonoBehaviour
 {
     readonly Dictionary<string,Transform> joints = new();
     readonly Dictionary<string,Quaternion> rest = new();
-    Transform visual;
+    Transform visual, poseRoot;
     Material material;
     float age, response = -10;
     Vector3 visualRest;
     float compression;
+    bool hovering;
+    float hoverDrive, hoverHold;
+    public float Glide { get; set; }
+    public bool Held { get; set; }
+    public float HoverHeight => poseRoot.localPosition.y;
+    public Transform PoseRoot => poseRoot;
+
+    public void EnableHover()
+    {
+        hovering=true;
+        SampleHover(0,0);
+    }
     public CompanionProfile Profile { get; private set; }
     public static bool IsAvailable(string id) => CompanionProfile.Find(id)!=null;
     public PlantedWalk Gait { get; private set; }
@@ -51,12 +63,14 @@ public sealed class FlowerCompanion : MonoBehaviour
         // and crown for placement; the culling box would leave the shoes over the floor.
         float scale=height/(Profile.Crown-Profile.Sole);
         Vector3 offset=visual.position-new Vector3(bounds.center.x,Profile.Sole,bounds.center.z);
-        visual.SetParent(transform,false);
+        poseRoot=new GameObject("角色动作根节点").transform;
+        poseRoot.SetParent(transform,false);
+        visual.SetParent(poseRoot,false);
         visual.localScale*=scale;
         visual.localPosition=scale*offset;
         visualRest=visual.localPosition;
         Debug.Log("Encounter skin fit "+id+" bind="+bounds.ToString("F3")+" final="+skin.bounds.ToString("F3"));
-        var hit=gameObject.AddComponent<CapsuleCollider>();
+        var hit=poseRoot.gameObject.AddComponent<CapsuleCollider>();
         hit.height=height;
         hit.radius=.18f*height;
         hit.center=.5f*height*Vector3.up;
@@ -99,7 +113,8 @@ public sealed class FlowerCompanion : MonoBehaviour
         float greeting=Mathf.Sin(Mathf.Clamp01(reactionAge/1.45f)*Mathf.PI);
         float entrance=1-Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.6f));
         float step=0;
-        if(Gait!=null)
+        if(hovering)step=SampleHover(t,dt);
+        else if(Gait!=null)
         {
             if(Lift>0)Gait.Reset();
             float arc=Gait.Advance(dt,Walking>.01f);
@@ -117,6 +132,18 @@ public sealed class FlowerCompanion : MonoBehaviour
             case CompanionProfile.Kind.Time: BowAndPause(t,reactionAge,greeting,reach,step); break;
             case CompanionProfile.Kind.Star: TraceStar(t,reactionAge,greeting,reach,step); break;
         }
+        if(hovering)
+        {
+            // A small paired settling motion, without alternating steps.
+            float floatBend=1.6f*step+4.1f*hoverHold;
+            Pose("ThighL",Vector3.right,-2-floatBend);
+            Pose("ThighR",Vector3.right,-1.5f-floatBend);
+            Pose("ShinL",Vector3.right,3+3.5f*hoverHold);
+            Pose("ShinR",Vector3.right,3+3.5f*hoverHold);
+            Pose("FootL",Vector3.right,1.7f*step+2*hoverDrive);
+            Pose("FootR",Vector3.right,1.7f*step+2*hoverDrive);
+            return;
+        }
         Pose("ThighL",Vector3.right,-10*Lift);
         Pose("ThighR",Vector3.right,-10*Lift);
         Pose("ShinL",Vector3.right,15*Lift);
@@ -124,6 +151,22 @@ public sealed class FlowerCompanion : MonoBehaviour
         Pose("FootL",Vector3.right,0);
         Pose("FootR",Vector3.right,0);
         if(Lift==0)Gait?.Solve(visual);
+    }
+
+    float SampleHover(float seconds,float dt)
+    {
+        float blend=1-Mathf.Exp(-5.8f*dt);
+        hoverDrive=Mathf.Lerp(hoverDrive,Mathf.Clamp01(Glide),blend);
+        hoverHold=Mathf.Lerp(hoverHold,Held?1:0,blend);
+        float rhythm=seconds*(2.2f+.075f*(int)Profile.Style);
+        float swell=Mathf.Sin(rhythm);
+        float sway=Mathf.Sin(rhythm*.78f+.62f);
+        float rise=Mathf.SmoothStep(0,1,Mathf.Clamp01(seconds/.62f));
+        float hover=Height*(.077f+rise*(.053f+.022f*swell)+.017f*hoverDrive+.10f*hoverHold);
+        Quaternion lean=Quaternion.Euler(.8f*sway+4.4f*hoverDrive,0,1.55f*sway);
+        Vector3 center=Vector3.up*(Height*.43f);
+        poseRoot.SetLocalPositionAndRotation(Vector3.up*hover+center-lean*center,lean);
+        return .42f*sway+.24f*hoverDrive;
     }
 
     void PoseSpring(float t,float greeting,float reach,float entrance,float step)
