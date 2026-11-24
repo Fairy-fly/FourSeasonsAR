@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.XR.ARSubsystems;
 
+[DefaultExecutionOrder(50)]
 public sealed class SpringSpirit : MonoBehaviour
 {
     public enum Season { Spring, Summer, Autumn, Winter }
@@ -89,9 +90,10 @@ public sealed class SpringSpirit : MonoBehaviour
             float a = i * 2.4f + age * .7f;
             float r = .026f + .017f * Mathf.Sin(i * 7) + .033f * pulse;
             petals[i].localPosition = new Vector3(Mathf.Cos(a) * r, .105f * (1 - t), Mathf.Sin(a) * r);
-            if(companion && now-burst>=.26f && now-burst<1.05f)
+            float release=season==Season.Autumn?FlowerCompanion.AutumnLeafRelease:.26f;
+            if(companion && now-burst>=release && now-burst<release+.79f)
             {
-                float flight=(now-burst-.26f)/.79f;
+                float flight=(now-burst-release)/.79f;
                 Vector3 spread=companion.transform.right*Mathf.Cos(i*2.4f)+companion.transform.forward*Mathf.Sin(i*2.4f);
                 if(season==Season.Autumn)
                 {

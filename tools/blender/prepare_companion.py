@@ -126,16 +126,59 @@ while lower:
         leg_side[index] = 'L' if center > (-.006 if autumn else .025) else 'R'
 if set(leg_side.values()) != {'L', 'R'}:
     raise ValueError("Both shoes must be present before skinning")
+if autumn:
+    # The color map marks the fused amber skirt and the pale sleeve on opposite
+    # sides of the seam. Let the fabric follow the hem instead of the forearm.
+    import numpy as np
+    color_path = root/'UnityProject/Assets/Resources/Gallery'/role/'Color.png'
+    color_map = bpy.data.images.load(str(color_path), check_existing=False)
+    color_map.colorspace_settings.name = 'Non-Color'
+    width, height = color_map.size
+    rgb = np.empty(width*height*4, dtype=np.float32)
+    color_map.pixels.foreach_get(rgb)
+    rgb = rgb.reshape(height,width,4)
+    bpy.data.images.remove(color_map)
+    uv = body.data.uv_layers.active.data
+    skin_at = np.zeros(len(body.data.vertices), dtype=np.float32)
+    samples = np.zeros(len(body.data.vertices), dtype=np.int32)
+    for loop in body.data.loops:
+        u,v = uv[loop.index].uv
+        r,g,b,_ = rgb[min(height-1,max(0,int(v*height))),min(width-1,max(0,int(u*width)))]
+        # Pale skin has a smaller color difference than the amber fabric.
+        skin_at[loop.vertex_index] += max(0,min(1,(.21-float(r-g))/.115))
+        samples[loop.vertex_index] += 1
+    skin_at /= np.maximum(samples,1)
 for vertex in body.data.vertices:
     p=vertex.co; x,y,z=p; side=leg_side.get(vertex.index, 'L' if x>0 else 'R')
     if z < (.150 if autumn else .173):
         # A slipper and its sole keep their shape, including the toe across the midline.
         groups['Foot'+side].add([vertex.index], 1.0, 'REPLACE')
         continue
-    if autumn and z < .48 and (abs(x+.008) > .065 or y > .049):
+    arm_strength = 1.0
+    if autumn and x > .055 and y > .075 and .57 < z < .84:
+        candidates = ['Head','CurlL']
+    elif autumn and z >= .716:
+        # The sculpt's chin and cheeks extend below the generic forehead cutoff.
+        # Facial vertices must follow the head as one rigid surface.
+        groups['Head'].add([vertex.index], 1.0, 'REPLACE')
+        continue
+    elif autumn and z >= .674:
+        candidates = ['Head','Chest']
+    elif autumn and side == 'L' and z >= .455 and x > max(.046, .115 - .58*(z-.48)) and y < .008:
+        # The outer hanging sleeve meets the dress. Fade arm weights across that seam.
+        inner_edge = max(.046, .115 - .58*(z-.48))
+        skin_influence = float(skin_at[vertex.index])
+        arm_strength = min(1, (x-inner_edge)/.025)*min(1, (z-.455)/.03)*skin_influence
+        if z < .53:
+            arm_strength *= min(1, (z-.455)/.06)
+        candidates = ['Chest','HemL','UpperArmL','ForearmL','PalmL']
+    elif autumn and z < .48 and (abs(x+.008) > .065 or y > .049):
         candidates=['Hips','Hem'+side]
-    elif autumn and x>.055 and y>.075 and .57<z<.84:
-        candidates=['Head','CurlL']
+    elif autumn and z >= .39:
+        candidates = ['Head','Chest','Hips','Hem'+side]
+        if side == 'R' and x < -.03 and y < -.052 and z > .50:
+            arm_strength = min(1, (-x-.03)/.035)*min(1, (-y-.052)/.036)
+            candidates += ['UpperArmR','ForearmR','PalmR']
     elif z < .39:
         candidates=['Thigh'+side,'Shin'+side,'Foot'+side] if z<.345 or abs(x)<.068 else ['Hips','Hem'+side]
     elif z>.80:
@@ -149,7 +192,11 @@ for vertex in body.data.vertices:
         b=arm.bones[name]; d=b.tail_local-b.head_local
         t=max(0,min(1,(p-b.head_local).dot(d)/d.length_squared))
         dist=(p-b.head_local-t*d).length
-        weights.append((1/(.012+dist)**4,name))
+        weight = 1/(.012+dist)**4
+        if name.startswith(('UpperArm','Forearm','Palm')):
+            weight *= arm_strength
+        if weight > 0:
+            weights.append((weight,name))
     weights=sorted(weights,reverse=True)[:4]
     total=sum(w for w,n in weights)
     for w,n in weights:groups[n].add([vertex.index],w/total,'REPLACE')

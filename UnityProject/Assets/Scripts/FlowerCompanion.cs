@@ -12,6 +12,7 @@ public sealed class FlowerCompanion : MonoBehaviour
     Vector3 visualRest;
     float compression;
     bool autumn;
+    public const float AutumnLeafRelease = .46f;
     public static bool IsAvailable(string id) => id==SpringVisit.ReferenceName || id=="autumn_manwu";
     public PlantedWalk Gait { get; private set; }
     public void EnableGroundGait()
@@ -102,7 +103,7 @@ public sealed class FlowerCompanion : MonoBehaviour
             compression=Mathf.MoveTowards(compression,target,dt*.19f);
             visual.localPosition=visualRest+Height*(Vector3.down*compression+Vector3.right*(step*.006f));
         }
-        if(autumn)PoseAutumn(t,greeting,reach,entrance,step);
+        if(autumn)PoseAutumn(t,reactionAge,greeting,reach,entrance,step);
         else PoseSpring(t,greeting,reach,entrance,step);
         Pose("ThighL",Vector3.right,-10*Lift);
         Pose("ThighR",Vector3.right,-10*Lift);
@@ -127,20 +128,22 @@ public sealed class FlowerCompanion : MonoBehaviour
         Pose("HemR",Vector3.right,-4*step-2*greeting);
     }
 
-    void PoseAutumn(float t,float greeting,float reach,float entrance,float step)
+    void PoseAutumn(float t,float reactionAge,float greeting,float reach,float entrance,float step)
     {
-        float sweep=reach*Mathf.Cos(t*2.8f);
-        Pose("Hips",Vector3.up,-13*greeting);
-        Pose("Chest",new Vector3(.19f,1,-.35f),5*Mathf.Sin(t*1.6f)-18*entrance+37*greeting);
-        Pose("Head",Vector3.up,6*Mathf.Sin(t*1.25f)-20*greeting);
-        Pose("UpperArmL",Vector3.forward,-42*reach+8*step);
-        Pose("ForearmL",Vector3.up,37*reach);
-        Pose("PalmL",Vector3.forward,24*greeting);
-        Pose("UpperArmR",Vector3.right,-9*reach+6*step);
-        Pose("CurlL",Vector3.forward,3*Mathf.Sin(t*2)+7*sweep);
-        Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*2+.7f)-4*sweep);
-        Pose("HemL",Vector3.forward,-11*greeting-5*step);
-        Pose("HemR",Vector3.forward,11*greeting+5*step);
+        // Open the hanging arm away from the face, then curl the wrist as the leaves release.
+        float flick=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.30f,AutumnLeafRelease,reactionAge))*
+            (1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.61f,.90f,reactionAge)));
+        Pose("Hips",Vector3.up,-5*greeting);
+        Pose("Chest",new Vector3(.12f,1,-.20f),3*Mathf.Sin(t*1.6f)-12*entrance+16*greeting);
+        Pose("Head",Vector3.up,4*Mathf.Sin(t*1.25f)-8*greeting);
+        Pose("UpperArmL",Vector3.forward,-22*reach+4*step);
+        Pose("ForearmL",new Vector3(-.57f,.82f,0),14*reach);
+        Pose("PalmL",Vector3.forward,-21*flick);
+        Pose("UpperArmR",Vector3.right,3*step);
+        Pose("CurlL",Vector3.forward,2*Mathf.Sin(t*2)+4*greeting);
+        Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*2+.7f)-2*greeting);
+        Pose("HemL",Vector3.forward,-4*greeting-4*step);
+        Pose("HemR",Vector3.forward,4*greeting+4*step);
     }
 
     void OnDestroy()
