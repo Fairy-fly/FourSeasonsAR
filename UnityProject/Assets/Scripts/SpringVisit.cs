@@ -20,7 +20,8 @@ public sealed class SpringVisit : MonoBehaviour
 
     readonly Dictionary<TrackableId, ARTrackedImage> targets = new();
     readonly CardFocus focus = new();
-    bool starting;
+    bool starting, scannerPaused;
+    Coroutine entrance;
     string invitation;
     public WorldWalk Travel { get; private set; }
     public void Invite(string id)
@@ -29,11 +30,11 @@ public sealed class SpringVisit : MonoBehaviour
         invitation=id;
         page.WorldDisplay(true);
         page.WorldHint("正在开启摄像头");
-        StartCoroutine(Enter());
+        entrance=StartCoroutine(Enter());
     }
     public void LeaveWorld()
     {
-        if(starting)return;
+        CancelEntrance();
         string role=Travel && Travel.Active ? Travel.Role : invitation;
         if(Travel && Travel.Active)Travel.Close();
         invitation=null;
@@ -43,19 +44,40 @@ public sealed class SpringVisit : MonoBehaviour
     bool scanning;
     public bool CanOpenAlbum => !starting && !scanning && !(Travel && Travel.Active);
     public SeasonAlbum Album { get; set; } = new SeasonAlbum();
-    float storyUntil;
+
 
     void Awake()
     {
+        Application.targetFrameRate=30;
         foreach (var character in characters) byReference.Add(character.referenceName, character);
     }
 
     void OnEnable() => images.trackablesChanged.AddListener(Changed);
-    void OnDisable() => images.trackablesChanged.RemoveListener(Changed);
+    void OnDisable()
+    {
+        images.trackablesChanged.RemoveListener(Changed);
+        CancelEntrance();
+    }
+
+    void OnApplicationPause(bool paused)
+    {
+        scannerPaused=paused;
+        if(!paused || !scanning)return;
+        targets.Clear();
+        focus.Clear();
+        ClearPresentation();
+    }
+
+    void CancelEntrance()
+    {
+        if(entrance!=null)StopCoroutine(entrance);
+        entrance=null;
+        starting=false;
+    }
 
     public void Begin()
     {
-        if(CanOpenAlbum){invitation=null;StartCoroutine(Enter());}
+        if(CanOpenAlbum){invitation=null;entrance=StartCoroutine(Enter());}
     }
 
     IEnumerator Enter()
@@ -76,6 +98,7 @@ public sealed class SpringVisit : MonoBehaviour
         {
             page.Message("请在手机的应用权限中允许使用相机，再点开始扫描。");
             starting = false;
+            entrance = null;
             if(invitation!=null)page.WorldHint("相机或 AR 服务暂不可用，可返回花册");
             yield break;
         }
@@ -86,12 +109,14 @@ public sealed class SpringVisit : MonoBehaviour
         {
             page.Message("AR 服务暂不可用，请检查 Google Play Services for AR 后重试。");
             starting = false;
+            entrance = null;
             if(invitation!=null)page.WorldHint("相机或 AR 服务暂不可用，可返回花册");
             yield break;
         }
         scanning = invitation==null;
         images.enabled=scanning;
         starting = false;
+        entrance = null;
         images.gameObject.SetActive(true);
         session.gameObject.SetActive(true);
         if(scanning)page.ShowScanner(true);
@@ -104,6 +129,7 @@ public sealed class SpringVisit : MonoBehaviour
 
     public void Home()
     {
+        CancelEntrance();
         scanning = false;
         images.gameObject.SetActive(false);
         session.gameObject.SetActive(false);
@@ -117,7 +143,6 @@ public sealed class SpringVisit : MonoBehaviour
     void ClearPresentation()
     {
         page.HideAnnouncement();
-        storyUntil = 0;
         page.SetTracking(false, false, false);
         if (activeSpirit)
         {
@@ -129,7 +154,7 @@ public sealed class SpringVisit : MonoBehaviour
 
     void Changed(ARTrackablesChangedEventArgs<ARTrackedImage> changes)
     {
-        if (!scanning) return;
+        if (!scanning || scannerPaused) return;
         foreach (var item in changes.removed)
         {
             targets.Remove(item.Key);
@@ -141,7 +166,7 @@ public sealed class SpringVisit : MonoBehaviour
 
         if (focus.Current is not TrackableId id || !targets.TryGetValue(id, out var target) || !target)
         {
-            if (activeSpirit || storyUntil != 0) ClearPresentation();
+            if (activeSpirit) ClearPresentation();
             return;
         }
         if (!activeSpirit || activeSpirit.transform.parent != target.transform ||
@@ -171,9 +196,10 @@ public sealed class SpringVisit : MonoBehaviour
     void Update()
     {
         if (!scanning) return;
-        bool visible = activeSpirit && activeSpirit.gameObject.activeInHierarchy;
-        var pointer = Pointer.current;
-        if (visible && focus.State == TrackingState.Tracking && pointer != null && pointer.press.wasPressedThisFrame &&
+        bool sessionReady=!scannerPaused && ARSession.state==ARSessionState.SessionTracking;
+        bool visible=activeSpirit && activeSpirit.gameObject.activeInHierarchy;
+        var pointer=Pointer.current;
+        if (visible && sessionReady && focus.State==TrackingState.Tracking && pointer != null && pointer.press.wasPressedThisFrame &&
             !page.IsBackButton(pointer.position.ReadValue()) &&
             Physics.Raycast(arCamera.ScreenPointToRay(pointer.position.ReadValue()), out var hit) &&
             hit.collider.GetComponentInParent<SpringSpirit>() == activeSpirit)
@@ -187,8 +213,7 @@ public sealed class SpringVisit : MonoBehaviour
             }
             Debug.Log("Season tapped " + activeSpirit.referenceName);
         }
-        if (!visible) storyUntil = 0;
-        page.SetTracking(visible,false,ARSession.state == ARSessionState.SessionTracking);
-        page.FollowSpirit(activeSpirit,visible && focus.State==TrackingState.Tracking,arCamera);
+        page.SetTracking(visible,false,sessionReady);
+        page.FollowSpirit(activeSpirit,visible && sessionReady && focus.State==TrackingState.Tracking,arCamera);
     }
 }

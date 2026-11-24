@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem.EnhancedTouch;
 using UnityEngine.XR.ARFoundation;
@@ -29,10 +28,14 @@ public sealed class WorldWalk : MonoBehaviour
     bool active, pending, dragging, downOnActor, pair, moving, hasDrag, paused, requireLift;
     Vector2 lastDrag;
     bool faceVisitor;
+    bool needsRecheck;
+    float boundaryInvalidAt=-1, rescanHintUntil;
+    readonly ArFrameWindow frames=new();
     const float TurnDegreesPerSecond=115;
     public bool Active=>active;
     public string Role=>role;
-    const float FootMargin=.035f;
+    const float FootMargin=.058f;
+    float Clearance=>FootMargin*scale;
 
     public void Open(SpringVisit owner,string id)
     {
@@ -71,7 +74,7 @@ public sealed class WorldWalk : MonoBehaviour
     }
     public void ResetSite()
     {
-        generation++;pending=false;CancelGesture();
+        generation++;pending=false;needsRecheck=false;boundaryInvalidAt=-1;rescanHintUntil=0;CancelGesture();
         if(actor)Destroy(actor.gameObject);
         if(anchor)Destroy(anchor.gameObject);
         actor=null;body=null;anchor=null;surface=null;candidate=null;scale=1;
@@ -81,7 +84,7 @@ public sealed class WorldWalk : MonoBehaviour
     public void Close()
     {
         if(!active)return;
-        active=false;ResetSite();
+        active=false;frames.Write();ResetSite();
         planes.enabled=rays.enabled=anchors.enabled=depth.enabled=false;
         Destroy(flower.gameObject);Destroy(markerInk);
         EnhancedTouchSupport.Disable();
@@ -91,18 +94,42 @@ public sealed class WorldWalk : MonoBehaviour
     {
         paused=value;
         if(!active)return;
-        CancelGesture();requireLift=true;
+        if(value && pending)
+        {
+            generation++;
+            pending=false;
+        }
+        SuspendPlacement();
+    }
+
+    void SuspendPlacement()
+    {
+        if(!needsRecheck)
+        {
+            CancelGesture();
+            frames.Write();
+        }
+        needsRecheck=true;
+        requireLift=true;
+        boundaryInvalidAt=-1;
         if(actor)actor.gameObject.SetActive(false);
         if(flower)flower.gameObject.SetActive(false);
     }
+
     public void FindActor()
     {
-        if(!actor){ResetSite();return;}
+        if(!actor){visit.page.WorldHint("慢慢移动手机，寻找地面或桌面");return;}
+        if(needsRecheck){visit.page.WorldHint("正在找回原来的位置");return;}
         var v=visit.arCamera.WorldToViewportPoint(actor.position);
         visit.page.WorldHint(v.z<0?"花灵在身后，请缓慢转身":v.x<.3f?"向左转，寻找花灵":v.x>.7f?"向右转，寻找花灵":v.y<.3f?"向下看，花灵在脚边":"花灵就在前方");
         Marker(actor.position);goalAt=Time.time+.9f;
     }
-    Vector2 Local(Vector3 world){var p=surface.transform.InverseTransformPoint(world);return new Vector2(p.x,p.z);}
+    static Vector2 InPlane(ARPlane plane,Vector3 world)
+    {
+        var point=plane.transform.InverseTransformPoint(world);
+        return new Vector2(point.x,point.z);
+    }
+    Vector2 Local(Vector3 world)=>InPlane(surface,world);
     Vector3 World(Vector2 p)=>surface.transform.TransformPoint(new Vector3(p.x,0,p.y));
     void Marker(Vector3 at)
     {
@@ -110,7 +137,7 @@ public sealed class WorldWalk : MonoBehaviour
         flower.transform.up=surface?surface.transform.up:Vector3.up;
     }
     static ARPlane Merged(ARPlane plane){while(plane && plane.subsumedBy)plane=plane.subsumedBy;return plane;}
-    bool Hit(Vector2 screen,out ARPlane plane,out Pose pose)
+    bool Hit(Vector2 screen,out ARPlane plane,out Pose pose,bool requireClearance=false)
     {
         plane=null;pose=default;
         if(!rays.Raycast(screen,hits,TrackableType.PlaneWithinPolygon))return false;
@@ -119,55 +146,79 @@ public sealed class WorldWalk : MonoBehaviour
             var p=Merged(planes.GetPlane(hit.trackableId));
             if(!p || p.alignment!=PlaneAlignment.HorizontalUp || p.trackingState!=TrackingState.Tracking)continue;
             if(surface && p!=Merged(surface))continue;
-            var point=p.transform.InverseTransformPoint(hit.pose.position);
-            if(!Inside(p.boundary,new Vector2(point.x,point.z),FootMargin*scale))continue;
+            if(requireClearance && !FloorBoundary.Contains(p.boundary,InPlane(p,hit.pose.position),Clearance))continue;
             plane=p;pose=hit.pose;return true;
         }
         return false;
     }
 
-    public static bool Inside(NativeArray<Vector2> poly,Vector2 p,float margin)
+    static string LostTrackingHint() => ARSession.notTrackingReason switch
     {
-        if(!poly.IsCreated || poly.Length<3)return false;
-        bool inside=false;
-        for(int i=0,j=poly.Length-1;i<poly.Length;j=i++)
-        {
-            Vector2 a=poly[j],b=poly[i],e=b-a;
-            float t=Mathf.Clamp01(Vector2.Dot(p-a,e)/Mathf.Max(e.sqrMagnitude,1e-10f));
-            if((p-a-t*e).sqrMagnitude<margin*margin)return false;
-            if((a.y>p.y)!=(b.y>p.y) && p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;
-        }
-        return inside;
-    }
-    public static Vector2 SafeEnd(NativeArray<Vector2> polygon,Vector2 from,Vector2 to,float margin)
+        NotTrackingReason.InsufficientLight => "请开灯，再慢慢移动手机",
+        NotTrackingReason.InsufficientFeatures => "对准有纹理的地面或桌面",
+        NotTrackingReason.ExcessiveMotion => "请慢慢移动手机",
+        NotTrackingReason.CameraUnavailable => "相机暂不可用，请返回后再试",
+        _ => "定位暂停，请缓慢移动手机重新定位"
+    };
+
+    bool RestorePlacement()
     {
-        Vector2 last=from;
-        int steps=Mathf.Max(1,Mathf.CeilToInt(Vector2.Distance(from,to)/Mathf.Max(.005f,margin*.5f)));
-        for(int i=1;i<=steps;i++)
+        if(!FloorBoundary.TryRecover(surface.boundary,Local(actor.position),Clearance,out var point))
         {
-            var p=Vector2.Lerp(from,to,i/(float)steps);
-            if(!Inside(polygon,p,margin))break;
-            last=p;
+            if(boundaryInvalidAt<0) boundaryInvalidAt=Time.unscaledTime;
+            visit.page.WorldHint("正在找回原来的位置");
+            if(Time.unscaledTime-boundaryInvalidAt>.55f)
+            {
+                ResetSite();
+                rescanHintUntil=Time.unscaledTime+2.5f;
+                visit.page.WorldHint("原位置不能使用，请重新放置");
+            }
+            return false;
         }
-        return last;
+        actor.position=World(point);
+        var forward=Vector3.ProjectOnPlane(actor.forward,surface.transform.up);
+        if(forward.sqrMagnitude>.000001f)actor.rotation=Quaternion.LookRotation(forward,surface.transform.up);
+        shade.Floor=surface.transform;
+        body.Gait.Reset();
+        needsRecheck=false;
+        boundaryInvalidAt=-1;
+        visit.page.WorldHint("轻触人物，她会回应你");
+        Debug.Log("World restored "+role);
+        return true;
     }
 
     async void Place(ARPlane plane,Pose hit)
     {
         int token=generation;pending=true;
-        var result=await anchors.TryAddAnchorAsync(new Pose(hit.position,Quaternion.identity));
+        Result<ARAnchor> result;
+        try
+        {
+            result=await anchors.TryAddAnchorAsync(new Pose(hit.position,Quaternion.identity));
+        }
+        catch(System.InvalidOperationException)
+        {
+            if(active && token==generation)
+            {
+                pending=false;
+                rescanHintUntil=Time.unscaledTime+1.5f;
+                visit.page.WorldHint("定位还不稳定，请重新点选花影");
+            }
+            return;
+        }
         if(!active || token!=generation)
         {
             if(result.status.IsSuccess() && result.value)Destroy(result.value.gameObject);
             return;
         }
         pending=false;
-        if(!result.status.IsSuccess() || !plane || plane.trackingState!=TrackingState.Tracking)
+        if(!result.status.IsSuccess() || paused || ARSession.state!=ARSessionState.SessionTracking ||
+            !plane || plane.trackingState!=TrackingState.Tracking ||
+            !FloorBoundary.Contains(plane.boundary,InPlane(plane,hit.position),Clearance))
         {
             if(result.status.IsSuccess() && result.value)Destroy(result.value.gameObject);
             visit.page.WorldHint("定位还不稳定，请重新点选花影");return;
         }
-        anchor=result.value;surface=plane;
+        anchor=result.value;surface=plane;needsRecheck=false;
         Vector3 towards=Vector3.ProjectOnPlane(visit.arCamera.transform.position-hit.position,surface.transform.up);
         Quaternion heading=towards.sqrMagnitude>.00001f
             ? Quaternion.LookRotation(towards,surface.transform.up) : anchor.transform.rotation;
@@ -198,7 +249,7 @@ public sealed class WorldWalk : MonoBehaviour
     public void SwitchRole()
     {
         if(!active)return;
-        if(actor && (!anchor || !surface || anchor.trackingState!=TrackingState.Tracking ||
+        if(actor && (needsRecheck || !anchor || !surface || anchor.trackingState!=TrackingState.Tracking ||
             surface.trackingState!=TrackingState.Tracking || ARSession.state!=ARSessionState.SessionTracking))
         {
             visit.page.WorldHint("正在找回原来的位置");
@@ -230,39 +281,45 @@ public sealed class WorldWalk : MonoBehaviour
         var touches=FingerTouch.activeTouches;
         if(paused || ARSession.state!=ARSessionState.SessionTracking)
         {
-            CancelGesture();requireLift=true;candidate=null;
-            if(actor)actor.gameObject.SetActive(false);
-            flower.gameObject.SetActive(false);visit.page.WorldHint("定位暂停，请缓慢移动手机重新定位");return;
+            SuspendPlacement();
+            candidate=null;
+            visit.page.WorldHint(LostTrackingHint());
+            return;
         }
-        if(requireLift){if(touches.Count>0)return;requireLift=false;}
         if(!actor)
         {
-            if(pending)return;
+            if(pending || !AllowNewTouch(touches.Count))return;
             var center=new Vector2(Screen.width*.5f,Screen.height*.48f);
-            bool found=Hit(center,out var p,out var hit);
+            bool found=Hit(center,out var p,out var hit,true);
             if(!found || candidate!=p){candidate=p;stableFrom=Time.time;}
             bool ready=found && Time.time-stableFrom>.35f;
             flower.gameObject.SetActive(ready);
-            visit.page.WorldHint(ready?"点花影，让她站在这里":"对准有纹理的地面或桌面，缓慢移动手机");
+            if(ready || Time.unscaledTime>=rescanHintUntil)
+                visit.page.WorldHint(ready?"点花影，让她站在这里":"对准有纹理的地面或桌面，缓慢移动手机");
             if(ready)
             {
                 Marker(hit.position);
                 if(touches.Count==1 && touches[0].phase==UnityEngine.InputSystem.TouchPhase.Began &&
-                    !visit.page.WorldConsumes(touches[0].screenPosition) && Hit(touches[0].screenPosition,out var tapped,out var target) &&
+                    !visit.page.WorldConsumes(touches[0].screenPosition) && Hit(touches[0].screenPosition,out var tapped,out var target,true) &&
                     tapped==p && Vector3.Distance(target.position,hit.position)<.10f)Place(p,target);
             }
             return;
         }
         if(!surface || !anchor){ResetSite();return;}
         var plane=Merged(surface);
-        if(plane!=surface){CancelGesture();surface=plane;shade.Floor=surface.transform;}
+        if(plane!=surface){SuspendPlacement();surface=plane;}
         if(surface.trackingState!=TrackingState.Tracking || anchor.trackingState!=TrackingState.Tracking)
         {
-            CancelGesture();requireLift=true;actor.gameObject.SetActive(false);flower.gameObject.SetActive(false);
-            visit.page.WorldHint("正在找回原来的位置");return;
+            SuspendPlacement();
+            visit.page.WorldHint("正在找回原来的位置");
+            return;
         }
-        if(!Inside(surface.boundary,Local(actor.position),.006f)){ResetSite();return;}
+        if(!needsRecheck && !FloorBoundary.Contains(surface.boundary,Local(actor.position),Clearance))
+            SuspendPlacement();
+        if(needsRecheck && !RestorePlacement())return;
         actor.gameObject.SetActive(true);
+        frames.Sample(Time.unscaledDeltaTime);
+        if(!AllowNewTouch(touches.Count))return;
         if(touches.Count>=2)
         {
             var a=touches[0].screenPosition;var b=touches[1].screenPosition;
@@ -272,8 +329,8 @@ public sealed class WorldWalk : MonoBehaviour
             else
             {
                 float next=Mathf.Clamp(scale*diff.magnitude/Mathf.Max(1,lastPairDistance),.65f,1.5f);
-                if(Inside(surface.boundary,Local(actor.position),FootMargin*next)){scale=next;actor.localScale=Vector3.one*scale;}
-                actor.Rotate(Vector3.up,-Mathf.DeltaAngle(lastPairAngle,angle),Space.World);
+                if(FloorBoundary.Contains(surface.boundary,Local(actor.position),FootMargin*next)){scale=next;actor.localScale=Vector3.one*scale;}
+                actor.Rotate(surface.transform.up,-Mathf.DeltaAngle(lastPairAngle,angle),Space.World);
                 body.Gait.Reset();
             }
             lastPairDistance=diff.magnitude;lastPairAngle=angle;return;
@@ -303,7 +360,7 @@ public sealed class WorldWalk : MonoBehaviour
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
             walkSpeed=Mathf.MoveTowards(walkSpeed,Mathf.Min(topSpeed,braking)*Mathf.InverseLerp(.25f,.94f,alignment),topSpeed*3*Time.deltaTime);
             var next=Vector2.MoveTowards(from,goal,Time.deltaTime*walkSpeed);
-            if(!Inside(surface.boundary,next,FootMargin*scale)){moving=false;body.Walking=0;walkSpeed=0;}
+            if(!FloorBoundary.CanTravel(surface.boundary,from,next,Clearance)){moving=false;body.Walking=0;walkSpeed=0;}
             else
             {
                 actor.position=World(next);
@@ -313,6 +370,13 @@ public sealed class WorldWalk : MonoBehaviour
             }
         }
         if(!moving && !dragging && Time.time>goalAt)flower.gameObject.SetActive(false);
+    }
+
+    bool AllowNewTouch(int count)
+    {
+        if(requireLift && count>0)return false;
+        requireLift=false;
+        return true;
     }
 
     void HandleTouch(FingerTouch touch)
@@ -338,7 +402,7 @@ public sealed class WorldWalk : MonoBehaviour
         {
             if(valid)
             {
-                lastDrag=SafeEnd(surface.boundary,lastDrag,Local(hit.position)+grabOffset,FootMargin*scale);
+                lastDrag=FloorBoundary.ReachableEnd(surface.boundary,lastDrag,Local(hit.position)+grabOffset,Clearance);
                 actor.position=World(lastDrag)+surface.transform.up*.045f;Marker(World(lastDrag));
             }
             if(touch.phase==UnityEngine.InputSystem.TouchPhase.Ended){CancelGesture();body.Respond();}
@@ -350,7 +414,7 @@ public sealed class WorldWalk : MonoBehaviour
         if(downOnActor){faceVisitor=true;body.Respond();effects.Respond();return;}
         if(!valid){visit.page.WorldHint("请选择同一块地面或桌面内的位置");return;}
         faceVisitor=false;
-        goal=SafeEnd(surface.boundary,Local(actor.position),Local(hit.position),FootMargin*scale);
+        goal=FloorBoundary.ReachableEnd(surface.boundary,Local(actor.position),Local(hit.position),Clearance);
         Marker(World(goal));goalAt=Time.time+.8f;moving=true;
         visit.page.WorldHint("轻触人物，她会回应你");
     }

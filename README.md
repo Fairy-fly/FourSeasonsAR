@@ -1,12 +1,14 @@
 # 四时花旅 · Four Seasons AR
 
-四季角色卡与 Android AR 花册。当前稳定版 **1.11** 支持扫描四张卡、点亮花册、查看六款人物的 2D 原画与 3D 模型。2.0 的可动角色、点击收录和现实同行按里程碑开发。
+四季角色卡与 Android AR 花册。当前稳定版 **1.11** 支持扫描四张卡、点亮花册、查看六款人物的 2D 原画与 3D 模型。2.0 候选版加入六位可动花灵、点击收录、现实放置和原地轮换。
 
 ![花册与角色详情](reports/evidence/ui-1.11-editor/cards-and-lettering.jpg)
 
 ## 安装与体验
 
 [下载 1.11](https://github.com/Fairy-fly/FourSeasonsAR/releases/tag/v1.11)。在支持 ARCore 的 Android 手机上安装 APK，允许相机权限。体验 ZIP 包含卡片、打印网页与操作说明。按实际尺寸打印，方形识别图外缘宽 80 mm。1.11 的扫码人物采用 2.5D，花册内可切换到可旋转的三维模型。
+
+[下载 2.0 候选版](https://github.com/Fairy-fly/FourSeasonsAR/releases)。体验包包含 ARM64 APK、四张识别图和同版体验与验收说明。六位可编辑的可动 Blender 模型随 2.0.0-rc.1 发布。实际测试状态见 [Android 真机验收](docs/Android真机验收.md) 和 [GitHub 进度](https://github.com/Fairy-fly/FourSeasonsAR/issues/4)。
 
 ## 从源码构建
 
