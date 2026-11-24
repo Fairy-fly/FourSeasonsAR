@@ -9,11 +9,12 @@ public sealed class CompanionPetals : MonoBehaviour
     readonly bool[] airborne=new bool[16];
     FlowerCompanion figure;
     Camera lens;
-    float nextStep, age, respondAt=-10;
+    float respondAt=-10;
     int cursor;
     public void Initialize(FlowerCompanion value,Camera camera,Sprite sprite)
     {
         figure=value;lens=camera;
+        figure.Gait.Landed+=Stamp;
         for(int i=0;i<ink.Length;i++)
         {
             var go=new GameObject("季节印记");
@@ -32,15 +33,11 @@ public sealed class CompanionPetals : MonoBehaviour
         r.transform.localScale=Vector3.one*(air?.016f:.030f)/Mathf.Max(.001f,r.sprite.bounds.size.x);
         if(!air)r.transform.rotation=Quaternion.AngleAxis(23*i,figure.transform.up)*Quaternion.LookRotation(figure.transform.up,figure.transform.forward);
     }
+    void Stamp(Vector3 sole)=>Emit(sole+figure.transform.up*.001f,false);
+    void OnDestroy(){if(figure && figure.Gait!=null)figure.Gait.Landed-=Stamp;}
     void LateUpdate()
     {
         if(!figure || !figure.gameObject.activeInHierarchy){foreach(var r in ink)if(r)r.gameObject.SetActive(false);return;}
-        age+=Time.deltaTime*figure.Walking;
-        if(figure.Walking>.1f && age>=nextStep)
-        {
-            nextStep=age+.43f;
-            Emit(figure.transform.position+figure.transform.up*.002f+figure.transform.right*(cursor%2==0?.019f:-.019f),false);
-        }
         float delay=Time.time-respondAt;
         if(delay>.28f && delay<1f)
         {

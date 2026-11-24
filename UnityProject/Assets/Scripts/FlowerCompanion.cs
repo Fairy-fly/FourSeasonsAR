@@ -8,7 +8,14 @@ public sealed class FlowerCompanion : MonoBehaviour
     readonly Dictionary<string,Quaternion> rest = new();
     Transform visual;
     Material material;
-    float age, response = -10, stride;
+    float age, response = -10;
+    Vector3 visualRest;
+    float compression;
+    public PlantedWalk Gait { get; private set; }
+    public void EnableGroundGait()
+    {
+        Gait=new PlantedWalk(transform,joints,Height);
+    }
     public float Walking { get; set; }
     public float Lift { get; set; }
     public float Height { get; private set; }
@@ -44,6 +51,7 @@ public sealed class FlowerCompanion : MonoBehaviour
         visual.SetParent(transform,false);
         visual.localScale*=scale;
         visual.localPosition=scale*offset;
+        visualRest=visual.localPosition;
         Debug.Log("Encounter skin fit "+id+" bind="+bounds.ToString("F3")+" final="+skin.bounds.ToString("F3"));
         var hit=gameObject.AddComponent<CapsuleCollider>();
         hit.height=height;
@@ -79,8 +87,16 @@ public sealed class FlowerCompanion : MonoBehaviour
                     (1-Mathf.SmoothStep(0,1,Mathf.Clamp01((reactionAge-.82f)/.58f)));
         float greeting=Mathf.Sin(Mathf.Clamp01(reactionAge/1.45f)*Mathf.PI);
         float entrance=1-Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.6f));
-        stride+=dt*7f*Walking;
-        float step=Mathf.Sin(stride)*Walking;
+        float step=0;
+        if(Gait!=null)
+        {
+            if(Lift>0)Gait.Reset();
+            float arc=Gait.Advance(dt,Walking>.01f);
+            step=Gait.Sway;
+            float target=Walking>.01f || Gait.SwingFoot>=0 ? .022f+.009f*arc : 0;
+            compression=Mathf.MoveTowards(compression,target,dt*.19f);
+            visual.localPosition=visualRest+Height*(Vector3.down*compression+Vector3.right*(step*.006f));
+        }
         Pose("Chest",new Vector3(-.42f,1,0).normalized,1.5f*Mathf.Sin(t*1.8f)+6*entrance+28*greeting);
         Pose("Head",Vector3.up,4*Mathf.Sin(t*.9f)-23*greeting);
         Pose("UpperArmL",Vector3.forward,-31*reach+step*4);
@@ -91,12 +107,13 @@ public sealed class FlowerCompanion : MonoBehaviour
         Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*1.9f+.7f)-3*step);
         Pose("HemL",Vector3.right,4*step+2*greeting);
         Pose("HemR",Vector3.right,-4*step-2*greeting);
-        Pose("ThighL",Vector3.right,19*step-10*Lift);
-        Pose("ThighR",Vector3.right,-19*step-10*Lift);
-        Pose("ShinL",Vector3.right,17*Mathf.Max(0,-step)+15*Lift);
-        Pose("ShinR",Vector3.right,17*Mathf.Max(0,step)+15*Lift);
-        Pose("FootL",Vector3.right,-8*step);
-        Pose("FootR",Vector3.right,8*step);
+        Pose("ThighL",Vector3.right,-10*Lift);
+        Pose("ThighR",Vector3.right,-10*Lift);
+        Pose("ShinL",Vector3.right,15*Lift);
+        Pose("ShinR",Vector3.right,15*Lift);
+        Pose("FootL",Vector3.right,0);
+        Pose("FootR",Vector3.right,0);
+        if(Lift==0)Gait?.Solve(visual);
     }
     void OnDestroy()
     {

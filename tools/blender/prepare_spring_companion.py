@@ -52,12 +52,16 @@ bone('Chest',(0,0,.47),(0,-.02,.65),'Hips')
 bone('Head',(0,-.02,.65),(0,0,1.04),'Chest')
 for side,sgn in [('L',1),('R',-1)]:
     def at(x,y,z):return (x*sgn,y,z)
-    hip,knee,ankle=at(.037,-.03,.40),at(.043,-.05,.27),at(.038,0,.15)
+    # The sculpt has a staggered stance. Fit each joint to its own calf and ankle.
+    if side == 'L':
+        hip,knee,ankle=(.038,-.060,.407),(.051,-.061,.267),(.059,.006,.15)
+    else:
+        hip,knee,ankle=(-.035,-.044,.407),(-.032,-.027,.267),(-.015,.031,.15)
     shoulder=at(.075,-.02,.62)
     elbow=at(.102,-.073,.55) if sgn==-1 else at(.132,-.045,.53)
     wrist=at(.056,-.138,.61) if sgn==-1 else at(.169,-.084,.464)
     for n,h,t,parent in [('Thigh',hip,knee,'Hips'),('Shin',knee,ankle,'Thigh'+side),
-                         ('Foot',ankle,at(.04,-.041,.124),'Shin'+side),
+                         ('Foot',ankle,(ankle[0],ankle[1]-.052,.124),'Shin'+side),
                          ('UpperArm',shoulder,elbow,'Chest'),('Forearm',elbow,wrist,'UpperArm'+side),
                          ('Palm',wrist,at(abs(wrist[0])+.012,wrist[1]-.015,wrist[2]-.018),'Forearm'+side),
                          ('Curl',at(.18,.008,.79),at(.215,-.004,.51),'Head'),
@@ -65,8 +69,34 @@ for side,sgn in [('L',1),('R',-1)]:
         bone(n+side,h,t,parent)
 bpy.ops.object.mode_set(mode='OBJECT')
 groups = {b.name:body.vertex_groups.new(name=b.name) for b in arm.bones}
+# Below the knees the shoes are two separate islands, even where a shoe
+# crosses x=0. Assign each entire island to its own leg before blending joints.
+lower = {v.index for v in body.data.vertices if v.co.z < .245}
+neighbours = {i: [] for i in lower}
+for edge in body.data.edges:
+    a,b=edge.vertices
+    if a in lower and b in lower:
+        neighbours[a].append(b)
+        neighbours[b].append(a)
+leg_side = {}
+while lower:
+    island = [lower.pop()]
+    for index in island:
+        for neighbour in neighbours[index]:
+            if neighbour in lower:
+                lower.remove(neighbour)
+                island.append(neighbour)
+    center = sum(body.data.vertices[i].co.x for i in island) / len(island)
+    for index in island:
+        leg_side[index] = 'L' if center > .025 else 'R'
+if set(leg_side.values()) != {'L', 'R'}:
+    raise ValueError("Both shoes must be present before skinning")
 for vertex in body.data.vertices:
-    p=vertex.co; x,y,z=p; side='L' if x>0 else 'R'
+    p=vertex.co; x,y,z=p; side=leg_side.get(vertex.index, 'L' if x>0 else 'R')
+    if z < .173:
+        # A slipper and its sole keep their shape, including the toe across the midline.
+        groups['Foot'+side].add([vertex.index], 1.0, 'REPLACE')
+        continue
     if z < .39:
         candidates=['Thigh'+side,'Shin'+side,'Foot'+side] if z<.345 or abs(x)<.068 else ['Hips','Hem'+side]
     elif z>.80:

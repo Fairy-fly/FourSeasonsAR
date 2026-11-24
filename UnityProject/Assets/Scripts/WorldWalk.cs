@@ -22,7 +22,7 @@ public sealed class WorldWalk : MonoBehaviour
     Material markerInk;
     readonly List<ARRaycastHit> hits=new();
     string role;
-    float stableFrom, downAt, goalAt, scale=1, lastPairAngle, lastPairDistance;
+    float stableFrom, downAt, goalAt, scale=1, lastPairAngle, lastPairDistance, walkSpeed;
     Vector2 down, goal, grabOffset;
     int finger=-1, generation;
     bool active, pending, dragging, downOnActor, pair, moving, hasDrag, paused, requireLift;
@@ -64,7 +64,7 @@ public sealed class WorldWalk : MonoBehaviour
     {
         if(body){body.Walking=0;body.Lift=0;}
         if(dragging && actor && surface && hasDrag) actor.position=World(lastDrag);
-        moving=dragging=hasDrag=pair=downOnActor=false;finger=-1;
+        walkSpeed=0;moving=dragging=hasDrag=pair=downOnActor=false;finger=-1;
     }
     public void ResetSite()
     {
@@ -170,6 +170,7 @@ public sealed class WorldWalk : MonoBehaviour
         Face(visit.arCamera.transform.position);
         body=actor.gameObject.AddComponent<FlowerCompanion>();
         body.Initialize(role,.26f);
+        body.EnableGroundGait();
         effects=anchor.gameObject.AddComponent<CompanionPetals>();
         var c=System.Array.Find(visit.characters,item=>item.referenceName==role);
         effects.Initialize(body,visit.arCamera,c.petal);
@@ -233,6 +234,7 @@ public sealed class WorldWalk : MonoBehaviour
                 float next=Mathf.Clamp(scale*diff.magnitude/Mathf.Max(1,lastPairDistance),.65f,1.5f);
                 if(Inside(surface.boundary,Local(actor.position),FootMargin*next)){scale=next;actor.localScale=Vector3.one*scale;}
                 actor.Rotate(Vector3.up,-Mathf.DeltaAngle(lastPairAngle,angle),Space.World);
+                body.Gait.Reset();
             }
             lastPairDistance=diff.magnitude;lastPairAngle=angle;return;
         }
@@ -241,12 +243,22 @@ public sealed class WorldWalk : MonoBehaviour
         if(moving)
         {
             var from=Local(actor.position);
-            var next=Vector2.MoveTowards(from,goal,Time.deltaTime*.21f*scale);
-            if(!Inside(surface.boundary,next,FootMargin*scale)){moving=false;body.Walking=0;}
+            float remaining=Vector2.Distance(from,goal);
+            var direction=Vector3.ProjectOnPlane(World(goal)-actor.position,surface.transform.up);
+            if(direction.sqrMagnitude>.000001f)
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),260*Time.deltaTime);
+            float alignment=Vector3.Dot(actor.forward,direction.normalized);
+            float topSpeed=body.Height*.39f*scale;
+            float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
+            walkSpeed=Mathf.MoveTowards(walkSpeed,Mathf.Min(topSpeed,braking)*Mathf.InverseLerp(.25f,.94f,alignment),topSpeed*3*Time.deltaTime);
+            var next=Vector2.MoveTowards(from,goal,Time.deltaTime*walkSpeed);
+            if(!Inside(surface.boundary,next,FootMargin*scale)){moving=false;body.Walking=0;walkSpeed=0;}
             else
             {
-                Face(World(goal));actor.position=World(next);
-                moving=(goal-next).sqrMagnitude>.00001f;body.Walking=moving?1:0;
+                actor.position=World(next);
+                moving=(goal-next).sqrMagnitude>.000001f;
+                body.Walking=moving?1:0;
+                if(!moving)walkSpeed=0;
             }
         }
         if(!moving && !dragging && Time.time>goalAt)flower.gameObject.SetActive(false);
@@ -260,7 +272,7 @@ public sealed class WorldWalk : MonoBehaviour
             if(visit.page.WorldConsumes(pos))return;
             finger=touch.touchId;down=pos;downAt=Time.time;
             downOnActor=Physics.Raycast(visit.arCamera.ScreenPointToRay(pos),out var h) && h.collider.GetComponentInParent<FlowerCompanion>()==body;
-            if(downOnActor){moving=false;body.Walking=0;}
+            if(downOnActor){moving=false;walkSpeed=0;body.Walking=0;}
             return;
         }
         if(finger!=touch.touchId)return;
@@ -284,7 +296,7 @@ public sealed class WorldWalk : MonoBehaviour
         if(touch.phase!=UnityEngine.InputSystem.TouchPhase.Ended)return;
         finger=-1;
         if(Vector2.Distance(pos,down)>Screen.width*.035f || visit.page.WorldConsumes(pos))return;
-        if(downOnActor){Face(visit.arCamera.transform.position);body.Respond();effects.Respond();return;}
+        if(downOnActor){Face(visit.arCamera.transform.position);body.Gait.Reset();body.Respond();effects.Respond();return;}
         if(!valid){visit.page.WorldHint("请选择同一块地面或桌面内的位置");return;}
         goal=SafeEnd(surface.boundary,Local(actor.position),Local(hit.position),FootMargin*scale);
         Marker(World(goal));goalAt=Time.time+.8f;moving=true;
