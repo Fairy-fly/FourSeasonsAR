@@ -15,6 +15,7 @@ public sealed partial class SpringPage
     RectTransform detailBack, modelSwitch;
     Text switchLabel;
     string detailId, detailExcerpt;
+    Button encounterTouch;
     Texture2D seasons, relics;
     static readonly Color32[] SeasonInk = {
         new(130,71,89,255),new(51,103,96,255),new(140,82,53,255),new(79,98,135,255)
@@ -87,6 +88,10 @@ public sealed partial class SpringPage
         detailScenery = interior.gameObject.AddComponent<AlbumScenery>();
         WashScenery(interior);
         detailPortrait = Portrait(Bounds(leaf,"立绘",.09f,.245f,.91f,.801f));
+        encounterTouch=detailPortrait.gameObject.AddComponent<FlowerButton>();
+        encounterTouch.targetGraphic=detailPortrait;
+        encounterTouch.transition=Selectable.Transition.None;
+        encounterTouch.onClick.AddListener(ReceiveHidden);
         detailAir = Air(Bounds(leaf,"景深",.059f,.239f,.941f,.802f),AlbumAtmosphere.Motif.Petal);
         var veil = Bounds(leaf,"展柜衬纸",.059f,.239f,.941f,.802f);
         Paint(veil,new Color32(248,237,227,145));
@@ -157,7 +162,7 @@ public sealed partial class SpringPage
             var portrait = Resources.Load<Sprite>("Gallery/" + id + "/Portrait");
             detailScenery.Select(relics,new Rect(0,pearl ? .5f : 0,1,.5f));
             detailAir.Select(pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
-            ShowDetail(id,title,portrait,"隐藏款",brushFont);
+            ShowDetail(id,title,portrait,HiddenNote(id),brushFont);
         });
     }
 
@@ -213,6 +218,22 @@ public sealed partial class SpringPage
         leaf.gameObject.SetActive(false);
     }
 
+    bool AllSeasonsCollected()=>System.Array.TrueForAll(visit.characters,c=>visit.Album.Contains(c.referenceName));
+    string HiddenNote(string id)=>visit.Album.Contains(id)?"已收录 · 隐藏款":AllSeasonsCollected()?"点击收录进四季花册~":"集齐四季后相遇";
+
+    void ReceiveHidden()
+    {
+        if(!leaf.gameObject.activeSelf || modelViewer.gameObject.activeSelf ||
+            (detailId!=AlbumModelViewer.TimeKeeper && detailId!=AlbumModelViewer.StarDreamer) ||
+            !AllSeasonsCollected() || !visit.Album.Collect(detailId))return;
+        detailAir.Sample(.8f);
+        detailExcerpt=detailStory.text=HiddenNote(detailId);
+        encounterTouch.interactable=false;
+        detailPortrait.raycastTarget=false;
+        ArrangeActions(detailId);
+        Debug.Log("Hidden encounter collected "+detailId);
+    }
+
     void OpenDetail(SpringSpirit character)
     {
         if (!visit.Album.Contains(character.referenceName)) return;
@@ -236,6 +257,9 @@ public sealed partial class SpringPage
         detailBack.anchorMax = new Vector2(hasModel ? .478f : .70f,.101f);
         modelSwitch.anchorMin=new Vector2(.522f,.028f);
         modelSwitch.anchorMax=new Vector2(.948f,.101f);
+        bool hidden = id==AlbumModelViewer.TimeKeeper || id==AlbumModelViewer.StarDreamer;
+        encounterTouch.interactable = hidden && AllSeasonsCollected() && !visit.Album.Contains(id);
+        detailPortrait.raycastTarget=encounterTouch.interactable;
         ArrangeActions(id);
         DressDetail(id);
         detailName.font = titleFont;

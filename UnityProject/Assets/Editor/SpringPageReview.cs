@@ -282,6 +282,25 @@ public static class SpringPageReview
                 }
             }
             finally { camera.targetTexture=large; RenderTexture.ReleaseTemporary(small); }
+            var hiddenPortrait=detail.Find("立绘").GetComponent<Button>();
+            var back=detail.Find("返回花册").GetComponent<Button>();
+            grid.Find("时见").GetComponent<Button>().onClick.Invoke();
+            Check(hiddenPortrait.interactable,"集齐四季后未开放时见相遇");
+            hiddenPortrait.onClick.Invoke();
+            hiddenPortrait.onClick.Invoke();
+            Check(visit.Album.Contains(AlbumModelViewer.TimeKeeper) && !visit.Album.Contains(AlbumModelViewer.StarDreamer),"隐藏身份收录串联");
+            back.onClick.Invoke();
+            string seasonId=visit.characters[0].referenceName;
+            visit.Album.Reset(new[]{seasonId});
+            grid.Find("星眠").GetComponent<Button>().onClick.Invoke();
+            hiddenPortrait.onClick.Invoke();
+            Check(!hiddenPortrait.interactable && !visit.Album.Contains(AlbumModelViewer.StarDreamer) && visit.Album.Contains(AlbumModelViewer.TimeKeeper),"部分重置后的隐藏资格不正确");
+            back.onClick.Invoke();
+            visit.Album.Collect(seasonId);
+            grid.Find("星眠").GetComponent<Button>().onClick.Invoke();
+            hiddenPortrait.onClick.Invoke();
+            back.onClick.Invoke();
+            Check(visit.Album.Contains(AlbumModelViewer.StarDreamer) && count.text.EndsWith("4 / 4"),"第二隐藏相遇或四季计数错误");
             grid.Find("返回封面").GetComponent<Button>().onClick.Invoke();
             Debug.Log("Album persistence, duplicate collection, detail mapping and navigation checks passed");
         }
@@ -289,6 +308,8 @@ public static class SpringPageReview
         {
             visit.Album = live;
             foreach (var character in visit.characters) PlayerPrefs.DeleteKey(prefix + character.referenceName);
+            PlayerPrefs.DeleteKey(prefix+AlbumModelViewer.TimeKeeper);
+            PlayerPrefs.DeleteKey(prefix+AlbumModelViewer.StarDreamer);
             PlayerPrefs.Save();
         }
     }
