@@ -11,9 +11,10 @@ public sealed class CompanionPetals : MonoBehaviour
     Camera lens;
     float respondAt=-10;
     int cursor;
-    public void Initialize(FlowerCompanion value,Camera camera,Sprite sprite)
+    bool autumn;
+    public void Initialize(FlowerCompanion value,Camera camera,Sprite sprite,SpringSpirit.Season season)
     {
-        figure=value;lens=camera;
+        figure=value;lens=camera;autumn=season==SpringSpirit.Season.Autumn;
         figure.Gait.Landed+=Stamp;
         for(int i=0;i<ink.Length;i++)
         {
@@ -53,7 +54,13 @@ public sealed class CompanionPetals : MonoBehaviour
             if(airborne[i])
             {
                 pos+=new Vector3(Mathf.Cos(i*2.4f)*t*.080f,Mathf.Sin(t*Mathf.PI)*.055f,Mathf.Sin(i*2.4f)*t*.080f);
-                r.transform.rotation=lens.transform.rotation*Quaternion.Euler(0,0,t*95+i*23);
+                if(autumn)
+                {
+                    float spin=i*2.4f+t*5.2f;
+                    pos=origin[i]+new Vector3(Mathf.Cos(spin)*t*.09f, .043f*Mathf.Sin(t*Mathf.PI)-t*.062f, Mathf.Sin(spin)*t*.09f);
+                    r.transform.rotation=lens.transform.rotation*Quaternion.Euler(t*95,0,t*240+i*23);
+                }
+                else r.transform.rotation=lens.transform.rotation*Quaternion.Euler(0,0,t*95+i*23);
             }
             r.transform.localPosition=pos;r.color=new Color(1,1,1,(airborne[i]?1:.55f)*(1-t*t));
         }

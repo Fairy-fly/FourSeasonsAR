@@ -93,6 +93,11 @@ public sealed class SpringSpirit : MonoBehaviour
             {
                 float flight=(now-burst-.26f)/.79f;
                 Vector3 spread=companion.transform.right*Mathf.Cos(i*2.4f)+companion.transform.forward*Mathf.Sin(i*2.4f);
+                if(season==Season.Autumn)
+                {
+                    float arc=i*2.4f+flight*5.2f;
+                    spread=companion.transform.right*Mathf.Cos(arc)+companion.transform.forward*Mathf.Sin(arc);
+                }
                 petals[i].position=companion.Palm+spread*(flight*.042f)+companion.transform.up*(.045f*Mathf.Sin(flight*Mathf.PI));
             }
             petals[i].rotation = Camera.main.transform.rotation * Quaternion.Euler(0, 0, i * 43 + age * 65);

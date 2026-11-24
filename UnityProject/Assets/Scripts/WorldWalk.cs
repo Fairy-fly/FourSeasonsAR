@@ -168,25 +168,60 @@ public sealed class WorldWalk : MonoBehaviour
             visit.page.WorldHint("定位还不稳定，请重新点选花影");return;
         }
         anchor=result.value;surface=plane;
-        actor=new GameObject("现实花灵").transform;actor.SetParent(anchor.transform,false);
-        actor.position=hit.position;
-        Face(visit.arCamera.transform.position);
+        Vector3 towards=Vector3.ProjectOnPlane(visit.arCamera.transform.position-hit.position,surface.transform.up);
+        Quaternion heading=towards.sqrMagnitude>.00001f
+            ? Quaternion.LookRotation(towards,surface.transform.up) : anchor.transform.rotation;
+        SpawnActor(hit.position,heading);
+        flower.gameObject.SetActive(false);
+        visit.page.WorldHint("点地面让她走过去，长按人物可拖动");
+        Debug.Log("World placed "+role);
+    }
+
+    void SpawnActor(Vector3 position,Quaternion heading)
+    {
+        actor=new GameObject("现实花灵").transform;
+        actor.SetParent(anchor.transform,false);
+        actor.SetPositionAndRotation(position,heading);
+        actor.localScale=Vector3.one*scale;
         body=actor.gameObject.AddComponent<FlowerCompanion>();
         body.Initialize(role,.26f);
         body.EnableGroundGait();
         shade=actor.gameObject.AddComponent<FootContactShade>();
         shade.Initialize(body,surface.transform);
-        effects=anchor.gameObject.AddComponent<CompanionPetals>();
-        var c=System.Array.Find(visit.characters,item=>item.referenceName==role);
-        effects.Initialize(body,visit.arCamera,c.petal);
-        flower.gameObject.SetActive(false);
-        visit.page.WorldHint("点地面让她走过去，长按人物可拖动");
-        Debug.Log("World placed "+role);
+        var marks=new GameObject("同行花印");
+        marks.transform.SetParent(anchor.transform,false);
+        effects=marks.AddComponent<CompanionPetals>();
+        var character=System.Array.Find(visit.characters,item=>item.referenceName==role);
+        effects.Initialize(body,visit.arCamera,character.petal,character.season);
     }
-    void Face(Vector3 point)
+
+    public void SwitchRole()
     {
-        var dir=Vector3.ProjectOnPlane(point-actor.position,surface.transform.up);
-        if(dir.sqrMagnitude>.00001f)actor.rotation=Quaternion.LookRotation(dir,surface.transform.up);
+        if(!active)return;
+        int count=visit.characters.Length;
+        int current=System.Array.FindIndex(visit.characters,item=>item.referenceName==role);
+        for(int offset=1;offset<count;offset++)
+        {
+            var target=visit.characters[(current+offset)%count];
+            if(!visit.Album.Contains(target.referenceName) || !FlowerCompanion.IsAvailable(target.referenceName))continue;
+            CancelGesture();
+            requireLift=true;
+            role=target.referenceName;
+            if(actor && anchor && surface)
+            {
+                Vector3 position=actor.position;
+                Quaternion heading=actor.rotation;
+                actor.gameObject.SetActive(false);
+                effects.gameObject.SetActive(false);
+                Destroy(actor.gameObject);
+                Destroy(effects.gameObject);
+                SpawnActor(position,heading);
+                flower.gameObject.SetActive(false);
+            }
+            visit.page.WorldHint("同行 · "+target.characterName);
+            Debug.Log("World swapped "+role);
+            return;
+        }
     }
 
     void Update()
@@ -264,7 +299,7 @@ public sealed class WorldWalk : MonoBehaviour
             if(direction.sqrMagnitude>.000001f)
                 actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),TurnDegreesPerSecond*Time.deltaTime);
             float alignment=Vector3.Dot(actor.forward,direction.normalized);
-            float topSpeed=body.Height*.39f*scale;
+            float topSpeed=body.Height*(role=="autumn_manwu"?.45f:.39f)*scale;
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
             walkSpeed=Mathf.MoveTowards(walkSpeed,Mathf.Min(topSpeed,braking)*Mathf.InverseLerp(.25f,.94f,alignment),topSpeed*3*Time.deltaTime);
             var next=Vector2.MoveTowards(from,goal,Time.deltaTime*walkSpeed);

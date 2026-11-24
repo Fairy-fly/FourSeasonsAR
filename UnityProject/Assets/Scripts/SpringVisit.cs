@@ -25,7 +25,7 @@ public sealed class SpringVisit : MonoBehaviour
     public WorldWalk Travel { get; private set; }
     public void Invite(string id)
     {
-        if(!CanOpenAlbum || !Album.Contains(id) || id!=ReferenceName)return;
+        if(!CanOpenAlbum || !Album.Contains(id) || !FlowerCompanion.IsAvailable(id))return;
         invitation=id;
         page.WorldDisplay(true);
         page.WorldHint("正在开启摄像头");
@@ -34,10 +34,11 @@ public sealed class SpringVisit : MonoBehaviour
     public void LeaveWorld()
     {
         if(starting)return;
+        string role=Travel && Travel.Active ? Travel.Role : invitation;
         if(Travel && Travel.Active)Travel.Close();
         invitation=null;
         Home();
-        page.WorldReturn();
+        page.WorldReturn(role);
     }
     bool scanning;
     public bool CanOpenAlbum => !starting && !scanning && !(Travel && Travel.Active);
@@ -149,7 +150,7 @@ public sealed class SpringVisit : MonoBehaviour
             ClearPresentation();
             if (focus.State != TrackingState.Tracking) return;
             activeSpirit = Instantiate(byReference[target.referenceImage.name], target.transform);
-            if(activeSpirit.referenceName == ReferenceName) activeSpirit.ShowCompanion(arCamera);
+            if(FlowerCompanion.IsAvailable(activeSpirit.referenceName)) activeSpirit.ShowCompanion(arCamera);
             Debug.Log("Season encountered " + activeSpirit.referenceName);
         }
         activeSpirit.Track(focus.State, limitedGrace);

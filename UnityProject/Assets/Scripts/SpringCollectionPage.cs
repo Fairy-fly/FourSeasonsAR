@@ -219,7 +219,7 @@ public sealed partial class SpringPage
     }
 
     bool AllSeasonsCollected()=>System.Array.TrueForAll(visit.characters,c=>visit.Album.Contains(c.referenceName));
-    string HiddenNote(string id)=>visit.Album.Contains(id)?"已收录 · 隐藏款":AllSeasonsCollected()?"点击收录进四季花册~":"集齐四季后相遇";
+    string HiddenNote(string id)=>visit.Album.Contains(id)?"已收录 · 隐藏款":AllSeasonsCollected()?"点击收录进四季花册~":"收集四季后可收录";
 
     void ReceiveHidden()
     {

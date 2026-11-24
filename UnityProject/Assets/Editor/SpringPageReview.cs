@@ -247,6 +247,8 @@ public static class SpringPageReview
                     detail.Find("立绘").GetComponent<Image>().sprite == character.portrait.sprite &&
                     detail.Find("角色花笺/花语").GetComponent<Text>().text == character.excerpt,"详情映射错误");
                 if (n == 1) Capture(camera,folder,"album-detail");
+                Check(detail.Find("来到现实").gameObject.activeSelf==FlowerCompanion.IsAvailable(character.referenceName),
+                    "现实同行入口与可动角色不一致");
                 var modelButton = detail.Find("查看 3D").GetComponent<Button>();
                 Check(modelButton.gameObject.activeSelf,
                     "3D 入口与模型映射不一致");

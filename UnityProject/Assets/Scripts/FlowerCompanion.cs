@@ -11,6 +11,8 @@ public sealed class FlowerCompanion : MonoBehaviour
     float age, response = -10;
     Vector3 visualRest;
     float compression;
+    bool autumn;
+    public static bool IsAvailable(string id) => id==SpringVisit.ReferenceName || id=="autumn_manwu";
     public PlantedWalk Gait { get; private set; }
     public void EnableGroundGait()
     {
@@ -23,6 +25,7 @@ public sealed class FlowerCompanion : MonoBehaviour
     public void Initialize(string id,float height)
     {
         Height = height;
+        autumn=id=="autumn_manwu";
         string path = "Gallery/" + id + "/";
         var prefab = Resources.Load<GameObject>(path+"Companion");
         if (!prefab) throw new System.InvalidOperationException("Missing companion " + id);
@@ -46,8 +49,10 @@ public sealed class FlowerCompanion : MonoBehaviour
         if(bounds.size.y < .0001f)throw new System.InvalidOperationException("Invalid skin bounds "+bounds);
         // The imported skinned culling bounds contain animation padding. Use the authored sole
         // and crown for placement; the culling box would leave the shoes over the floor.
-        float scale=height/(1.12838f-.117f);
-        Vector3 offset=visual.position-new Vector3(bounds.center.x,.117f,bounds.center.z);
+        float sole=autumn?.049f:.117f;
+        float crown=autumn?1.13658f:1.12838f;
+        float scale=height/(crown-sole);
+        Vector3 offset=visual.position-new Vector3(bounds.center.x,sole,bounds.center.z);
         visual.SetParent(transform,false);
         visual.localScale*=scale;
         visual.localPosition=scale*offset;
@@ -97,6 +102,19 @@ public sealed class FlowerCompanion : MonoBehaviour
             compression=Mathf.MoveTowards(compression,target,dt*.19f);
             visual.localPosition=visualRest+Height*(Vector3.down*compression+Vector3.right*(step*.006f));
         }
+        if(autumn)PoseAutumn(t,greeting,reach,entrance,step);
+        else PoseSpring(t,greeting,reach,entrance,step);
+        Pose("ThighL",Vector3.right,-10*Lift);
+        Pose("ThighR",Vector3.right,-10*Lift);
+        Pose("ShinL",Vector3.right,15*Lift);
+        Pose("ShinR",Vector3.right,15*Lift);
+        Pose("FootL",Vector3.right,0);
+        Pose("FootR",Vector3.right,0);
+        if(Lift==0)Gait?.Solve(visual);
+    }
+
+    void PoseSpring(float t,float greeting,float reach,float entrance,float step)
+    {
         Pose("Chest",new Vector3(-.42f,1,0).normalized,1.5f*Mathf.Sin(t*1.8f)+6*entrance+28*greeting);
         Pose("Head",Vector3.up,4*Mathf.Sin(t*.9f)-23*greeting);
         Pose("UpperArmL",Vector3.forward,-31*reach+step*4);
@@ -107,14 +125,24 @@ public sealed class FlowerCompanion : MonoBehaviour
         Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*1.9f+.7f)-3*step);
         Pose("HemL",Vector3.right,4*step+2*greeting);
         Pose("HemR",Vector3.right,-4*step-2*greeting);
-        Pose("ThighL",Vector3.right,-10*Lift);
-        Pose("ThighR",Vector3.right,-10*Lift);
-        Pose("ShinL",Vector3.right,15*Lift);
-        Pose("ShinR",Vector3.right,15*Lift);
-        Pose("FootL",Vector3.right,0);
-        Pose("FootR",Vector3.right,0);
-        if(Lift==0)Gait?.Solve(visual);
     }
+
+    void PoseAutumn(float t,float greeting,float reach,float entrance,float step)
+    {
+        float sweep=reach*Mathf.Cos(t*2.8f);
+        Pose("Hips",Vector3.up,-13*greeting);
+        Pose("Chest",new Vector3(.19f,1,-.35f),5*Mathf.Sin(t*1.6f)-18*entrance+37*greeting);
+        Pose("Head",Vector3.up,6*Mathf.Sin(t*1.25f)-20*greeting);
+        Pose("UpperArmL",Vector3.forward,-42*reach+8*step);
+        Pose("ForearmL",Vector3.up,37*reach);
+        Pose("PalmL",Vector3.forward,24*greeting);
+        Pose("UpperArmR",Vector3.right,-9*reach+6*step);
+        Pose("CurlL",Vector3.forward,3*Mathf.Sin(t*2)+7*sweep);
+        Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*2+.7f)-4*sweep);
+        Pose("HemL",Vector3.forward,-11*greeting-5*step);
+        Pose("HemR",Vector3.forward,11*greeting+5*step);
+    }
+
     void OnDestroy()
     {
         if(!material)return;

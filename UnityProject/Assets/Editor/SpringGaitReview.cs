@@ -7,6 +7,14 @@ public static class SpringGaitReview
 {
     public static void Run()
     {
+        Review(SpringVisit.ReferenceName);
+        ReviewAutumn();
+    }
+
+    public static void ReviewAutumn() => Review("autumn_manwu");
+
+    static void Review(string id)
+    {
         var actor=new GameObject("Spring gait review");
         var camera=new GameObject("Side camera").AddComponent<Camera>();
         var frame=RenderTexture.GetTemporary(480,560,24);
@@ -17,16 +25,22 @@ public static class SpringGaitReview
         {
             actor.transform.position=new Vector3(60,0,0);
             var body=actor.AddComponent<FlowerCompanion>();
-            body.Initialize(SpringVisit.ReferenceName,.26f);
+            body.Initialize(id,.26f);
             body.EnableGroundGait();
             var gait=body.Gait;
+            body.Sample(2.3f,3f,0);
+            var neutral=body.Palm;
+            body.Sample(2.3f,.64f,0);
+            if(Vector3.Distance(body.Palm,neutral)<.008f)throw new InvalidOperationException(id+" response is too small");
+            body.Sample(2.3f,3f,0);
+            gait.Reset();
             int stamps=0;
             gait.Landed+=point=>{if(Mathf.Abs(point.y)>.0002f)throw new Exception("Footprint above floor");stamps++;};
             Vector3[] soles={gait.Ankle(0),gait.Ankle(1)};
             Vector3[] start={soles[0],soles[1]};
             float drift=0, rise=0;
             int held=0, previousSwing=-1, turnStart=0, turnContacts=0;
-            string dir=Path.GetFullPath("../reports/evidence/spring-gait-alpha4");
+            string dir=Path.GetFullPath("../reports/evidence/gait-alpha5-"+id);
             Directory.CreateDirectory(dir);
             camera.targetTexture=frame;camera.orthographic=true;camera.orthographicSize=.153f;
             camera.nearClipPlane=.01f;camera.farClipPlane=2;camera.clearFlags=CameraClearFlags.SolidColor;
@@ -53,7 +67,7 @@ public static class SpringGaitReview
                 if(pivot)actor.transform.Rotate(Vector3.up,4f);
                 body.Walking=i<120 || (i>=195 && i<228)?1:0;
                 actor.transform.position+=actor.transform.forward*(.10f*dt*body.Walking);
-                body.Sample(i*dt,5,dt);
+                body.Sample(i*dt,i>=235?(i-235)*dt:5f,dt);
                 if(i==149)turnStart=stamps;
                 if(i==194)turnContacts=stamps-turnStart;
                 int swing=gait.SwingFoot;
@@ -86,9 +100,9 @@ public static class SpringGaitReview
                 pixels.ReadPixels(new Rect(0,0,frame.width,frame.height),0,0);pixels.Apply();
                 File.WriteAllBytes(Path.Combine(dir,$"walk-{count++:D3}.jpg"),pixels.EncodeToJPG(91));
             }
-            Debug.Log($"Spring gait: stance drift={drift:F5} m, peak frame rise={rise:F5} m, contacts={stamps}, pivot contacts={turnContacts}, frames={count}");
+            Debug.Log($"{id} gait: stance drift={drift:F5} m, peak frame rise={rise:F5} m, contacts={stamps}, pivot contacts={turnContacts}, frames={count}");
             if(turnContacts<3 || stamps<5 || stamps>45 || drift>.003f || rise<.00035f || gait.SwingFoot!=-1)
-                throw new InvalidOperationException("Spring gait failed contact, clearance or stopping checks");
+                throw new InvalidOperationException(id+" gait failed contact, clearance or stopping checks");
         }
         finally
         {

@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 public sealed partial class SpringPage
 {
-    RectTransform worldPage, summon, worldControls;
+    RectTransform worldPage, summon, worldControls, swap;
     Text worldMessage;
 
     void BuildWorldPage()
@@ -11,9 +11,10 @@ public sealed partial class SpringPage
         summon=AlbumButton(leaf,"来到现实",.29f,.185f,.71f,.239f,()=>visit.Invite(detailId));
         worldPage=Bounds(safe,"现实同行",0,0,1,1);
         worldControls=Bounds(worldPage,"控制栏",.04f,.905f,.96f,.98f);
-        AlbumButton(worldControls,"返回花册",0,0,.31f,1,()=>visit.LeaveWorld());
-        AlbumButton(worldControls,"找回",.36f,0,.59f,1,()=>visit.Travel.FindActor());
-        AlbumButton(worldControls,"重新放置",.63f,0,1,1,()=>visit.Travel.ResetSite());
+        AlbumButton(worldControls,"返回花册",0,0,.248f,1,()=>visit.LeaveWorld());
+        AlbumButton(worldControls,"找回",.267f,0,.458f,1,()=>visit.Travel?.FindActor());
+        AlbumButton(worldControls,"重新放置",.477f,0,.754f,1,()=>visit.Travel?.ResetSite());
+        swap=AlbumButton(worldControls,"下一位",.774f,0,1,1,()=>visit.Travel?.SwitchRole());
         var caption=Bounds(worldPage,"同行提示",.06f,.050f,.94f,.122f);
         Surface(caption,Glass,true);
         worldMessage=Label(Inset(caption,"提示",4),"",18,Parchment);
@@ -26,21 +27,25 @@ public sealed partial class SpringPage
     {
         if(open)
         {
+            int available=0;
+            foreach(var character in visit.characters)
+                if(FlowerCompanion.IsAvailable(character.referenceName) && visit.Album.Contains(character.referenceName))available++;
+            swap.gameObject.SetActive(available>=2);
             modelViewer.Close();home.SetActive(false);coverLayer.SetActive(false);
             scanner.SetActive(false);albumPaper.SetActive(false);album.gameObject.SetActive(false);
         }
         worldPage.gameObject.SetActive(open);
     }
-    public void WorldReturn()
+    public void WorldReturn(string role)
     {
         WorldDisplay(false);
         OpenAlbum();
         foreach(var c in visit.characters)
-            if(c.referenceName==detailId && visit.Album.Contains(detailId)){OpenDetail(c);break;}
+            if(c.referenceName==role && visit.Album.Contains(role)){OpenDetail(c);break;}
     }
     void ArrangeActions(string id)
     {
-        bool canInvite=visit.Album.Contains(id) && id==SpringVisit.ReferenceName;
+        bool canInvite=visit.Album.Contains(id) && FlowerCompanion.IsAvailable(id);
         summon.gameObject.SetActive(canInvite);
         if(!canInvite)return;
         detailBack.anchorMin=new Vector2(.035f,.028f);detailBack.anchorMax=new Vector2(.325f,.101f);
