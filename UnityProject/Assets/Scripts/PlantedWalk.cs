@@ -16,6 +16,7 @@ public sealed class PlantedWalk
     readonly Transform root, anchor;
     readonly Leg[] legs = new Leg[2];
     readonly float height;
+    readonly CompanionProfile profile;
     Vector3 previous, swingFrom, swingTo;
     float phase;
     Quaternion priorHeading, swingHeading;
@@ -28,10 +29,11 @@ public sealed class PlantedWalk
     public float Sway { get; private set; }
     public int SwingFoot => swing;
 
-    public PlantedWalk(Transform root, Dictionary<string,Transform> bones, float height)
+    public PlantedWalk(Transform root, Dictionary<string,Transform> bones, float height, CompanionProfile profile)
     {
         this.root=root;
         this.height=height;
+        this.profile=profile;
         anchor=root.parent;
         for(int i=0;i<2;i++)
         {
@@ -80,7 +82,7 @@ public sealed class PlantedWalk
         if(travel.magnitude>.65f*unit){Reset();return 0;}
         engaged|=walking || turn>.05f;
         if(!engaged)return 0;
-        float span=.086f*unit;
+        float span=.086f*unit*profile.StepLength;
         if(swing<0)
         {
             float error=Vector3.Distance(legs[next].contact,Rest(next));
@@ -131,7 +133,7 @@ public sealed class PlantedWalk
     {
         if(i!=swing)return InWorld(legs[i].contact);
         Vector3 target=InWorld(Vector3.Lerp(swingFrom,swingTo,Mathf.SmoothStep(0,1,phase)));
-        return target+root.up*(height*root.lossyScale.y*.047f*Mathf.Sin(Mathf.PI*phase));
+        return target+root.up*(height*root.lossyScale.y*.047f*profile.Lift*Mathf.Sin(Mathf.PI*phase));
     }
 
     public void Solve(Transform visual)

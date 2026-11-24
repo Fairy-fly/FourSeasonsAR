@@ -157,13 +157,16 @@ public sealed partial class SpringPage
             pearl ? new Color32(56,42,40,234) : new Color32(41,31,64,234));
         Label(Bounds(plaque,"款名",.03f,.38f,.97f,.94f),title,29,Parchment,brushFont);
         Label(Bounds(plaque,"款别",.04f,.05f,.96f,.38f),"隐藏款",14,new Color32(248,218,170,255));
-        MakeButton(seat,edge,() => {
-            string id = pearl ? AlbumModelViewer.TimeKeeper : AlbumModelViewer.StarDreamer;
-            var portrait = Resources.Load<Sprite>("Gallery/" + id + "/Portrait");
-            detailScenery.Select(relics,new Rect(0,pearl ? .5f : 0,1,.5f));
-            detailAir.Select(pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
-            ShowDetail(id,title,portrait,HiddenNote(id),brushFont);
-        });
+        MakeButton(seat,edge,() => OpenHiddenDetail(pearl ? AlbumModelViewer.TimeKeeper : AlbumModelViewer.StarDreamer));
+    }
+
+    void OpenHiddenDetail(string id)
+    {
+        bool pearl=id==AlbumModelViewer.TimeKeeper;
+        var portrait=Resources.Load<Sprite>("Gallery/"+id+"/Portrait");
+        detailScenery.Select(relics,new Rect(0,pearl ? .5f : 0,1,.5f));
+        detailAir.Select(pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
+        ShowDetail(id,CompanionProfile.Find(id).Name,portrait,HiddenNote(id),brushFont);
     }
 
     static Image Portrait(RectTransform rect)

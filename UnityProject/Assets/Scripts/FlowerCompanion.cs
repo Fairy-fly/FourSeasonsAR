@@ -11,13 +11,12 @@ public sealed class FlowerCompanion : MonoBehaviour
     float age, response = -10;
     Vector3 visualRest;
     float compression;
-    bool autumn;
-    public const float AutumnLeafRelease = .46f;
-    public static bool IsAvailable(string id) => id==SpringVisit.ReferenceName || id=="autumn_manwu";
+    public CompanionProfile Profile { get; private set; }
+    public static bool IsAvailable(string id) => CompanionProfile.Find(id)!=null;
     public PlantedWalk Gait { get; private set; }
     public void EnableGroundGait()
     {
-        Gait=new PlantedWalk(transform,joints,Height);
+        Gait=new PlantedWalk(transform,joints,Height,Profile);
     }
     public float Walking { get; set; }
     public float Lift { get; set; }
@@ -26,7 +25,7 @@ public sealed class FlowerCompanion : MonoBehaviour
     public void Initialize(string id,float height)
     {
         Height = height;
-        autumn=id=="autumn_manwu";
+        Profile=CompanionProfile.Find(id) ?? throw new System.ArgumentException("Unknown companion "+id);
         string path = "Gallery/" + id + "/";
         var prefab = Resources.Load<GameObject>(path+"Companion");
         if (!prefab) throw new System.InvalidOperationException("Missing companion " + id);
@@ -50,10 +49,8 @@ public sealed class FlowerCompanion : MonoBehaviour
         if(bounds.size.y < .0001f)throw new System.InvalidOperationException("Invalid skin bounds "+bounds);
         // The imported skinned culling bounds contain animation padding. Use the authored sole
         // and crown for placement; the culling box would leave the shoes over the floor.
-        float sole=autumn?.049f:.117f;
-        float crown=autumn?1.13658f:1.12838f;
-        float scale=height/(crown-sole);
-        Vector3 offset=visual.position-new Vector3(bounds.center.x,sole,bounds.center.z);
+        float scale=height/(Profile.Crown-Profile.Sole);
+        Vector3 offset=visual.position-new Vector3(bounds.center.x,Profile.Sole,bounds.center.z);
         visual.SetParent(transform,false);
         visual.localScale*=scale;
         visual.localPosition=scale*offset;
@@ -68,6 +65,14 @@ public sealed class FlowerCompanion : MonoBehaviour
     }
 
     public Vector3 Palm => joints.TryGetValue("PalmL",out var joint)?joint.position:transform.position+transform.up*(Height*.6f);
+
+    public Vector3 EffectPoint => Profile.Style switch
+    {
+        CompanionProfile.Kind.Summer => joints["PalmR"].position-transform.up*(Height*.16f),
+        CompanionProfile.Kind.Winter or CompanionProfile.Kind.Time =>
+            (Palm+joints["PalmR"].position)*.5f,
+        _ => Palm
+    };
 
     public void Respond()
     {
@@ -103,8 +108,15 @@ public sealed class FlowerCompanion : MonoBehaviour
             compression=Mathf.MoveTowards(compression,target,dt*.19f);
             visual.localPosition=visualRest+Height*(Vector3.down*compression+Vector3.right*(step*.006f));
         }
-        if(autumn)PoseAutumn(t,reactionAge,greeting,reach,entrance,step);
-        else PoseSpring(t,greeting,reach,entrance,step);
+        switch(Profile.Style)
+        {
+            case CompanionProfile.Kind.Spring: PoseSpring(t,greeting,reach,entrance,step); break;
+            case CompanionProfile.Kind.Autumn: PoseAutumn(t,reactionAge,greeting,reach,entrance,step); break;
+            case CompanionProfile.Kind.Summer: CarryLantern(t,greeting,reach,step); break;
+            case CompanionProfile.Kind.Winter: CupSnow(t,greeting,reach,step); break;
+            case CompanionProfile.Kind.Time: BowAndPause(t,reactionAge,greeting,reach,step); break;
+            case CompanionProfile.Kind.Star: TraceStar(t,reactionAge,greeting,reach,step); break;
+        }
         Pose("ThighL",Vector3.right,-10*Lift);
         Pose("ThighR",Vector3.right,-10*Lift);
         Pose("ShinL",Vector3.right,15*Lift);
@@ -131,7 +143,7 @@ public sealed class FlowerCompanion : MonoBehaviour
     void PoseAutumn(float t,float reactionAge,float greeting,float reach,float entrance,float step)
     {
         // Open the hanging arm away from the face, then curl the wrist as the leaves release.
-        float flick=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.30f,AutumnLeafRelease,reactionAge))*
+        float flick=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.30f,Profile.Release,reactionAge))*
             (1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.61f,.90f,reactionAge)));
         Pose("Hips",Vector3.up,-5*greeting);
         Pose("Chest",new Vector3(.12f,1,-.20f),3*Mathf.Sin(t*1.6f)-12*entrance+16*greeting);
@@ -144,6 +156,63 @@ public sealed class FlowerCompanion : MonoBehaviour
         Pose("CurlR",Vector3.forward,2*Mathf.Sin(t*2+.7f)-2*greeting);
         Pose("HemL",Vector3.forward,-4*greeting-4*step);
         Pose("HemR",Vector3.forward,4*greeting+4*step);
+    }
+
+    void CarryLantern(float t,float greeting,float reach,float step)
+    {
+        Pose("Chest",Vector3.up,3*Mathf.Sin(t*1.4f)+9*greeting);
+        Pose("Head",new Vector3(.5f,1,.12f),6*Mathf.Sin(t*.9f)-9*greeting);
+        Pose("UpperArmR",Vector3.forward,4*step-5*reach);
+        Pose("ForearmR",Vector3.right,8*reach-4*step);
+        Pose("PalmR",Vector3.forward,5*Mathf.Sin(t*2.2f)+11*reach);
+        Pose("UpperArmL",Vector3.forward,-13*reach+5*step);
+        Pose("ForearmL",Vector3.up,16*reach);
+        Pose("HemL",Vector3.right,8*step);
+        Pose("HemR",Vector3.right,-8*step);
+    }
+
+    void CupSnow(float t,float greeting,float reach,float step)
+    {
+        Pose("Chest",Vector3.right,3*Mathf.Sin(t*1.6f)+9*greeting);
+        Pose("Head",Vector3.right,8*greeting);
+        Pose("UpperArmL",Vector3.forward,12*reach+3*step);
+        Pose("ForearmL",new Vector3(-.66f,.65f,-.34f),28*reach);
+        Pose("PalmL",Vector3.up,-9*reach);
+        Pose("ForearmR",Vector3.right,16*reach-3*step);
+        Pose("PalmR",Vector3.forward,15*reach);
+        Pose("HemL",Vector3.right,4*step);
+        Pose("HemR",Vector3.right,-4*step);
+    }
+
+    void BowAndPause(float t,float reactionAge,float greeting,float reach,float step)
+    {
+        float hold=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.26f,.54f,reactionAge))
+            *(1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(.82f,1.26f,reactionAge)));
+        Pose("Chest",Vector3.right,1.4f*Mathf.Sin(t*1.4f)+15*greeting);
+        Pose("Head",Vector3.right,12*greeting);
+        Pose("ForearmL",Vector3.right,-25*hold);
+        Pose("ForearmR",Vector3.right,-23*hold);
+        Pose("PalmL",Vector3.up,19*reach);
+        Pose("PalmR",Vector3.up,-19*reach);
+        Pose("HemL",Vector3.right,5*step);
+        Pose("HemR",Vector3.right,-5*step);
+        Pose("CurlL",Vector3.forward,3*step);
+        Pose("CurlR",Vector3.forward,-3*step);
+    }
+
+    void TraceStar(float t,float reactionAge,float greeting,float reach,float step)
+    {
+        float sweep=Mathf.SmoothStep(0,1,Mathf.InverseLerp(.30f,.74f,reactionAge));
+        Pose("Chest",Vector3.up,3*Mathf.Sin(t*1.8f)-17*greeting);
+        Pose("Head",Vector3.up,4*Mathf.Sin(t*1.2f)+19*greeting);
+        Pose("UpperArmL",Vector3.forward,-20*reach);
+        Pose("ForearmL",new Vector3(-.65f,.75f,0),18*reach);
+        Pose("PalmL",Vector3.up,36*reach*sweep);
+        Pose("ForearmR",Vector3.right,-7*reach);
+        Pose("CurlL",Vector3.forward,4*greeting+5*step);
+        Pose("CurlR",Vector3.forward,-4*greeting-5*step);
+        Pose("HemL",Vector3.right,7*step);
+        Pose("HemR",Vector3.right,-7*step);
     }
 
     void OnDestroy()

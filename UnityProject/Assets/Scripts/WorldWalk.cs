@@ -192,36 +192,36 @@ public sealed class WorldWalk : MonoBehaviour
         marks.transform.SetParent(anchor.transform,false);
         effects=marks.AddComponent<CompanionPetals>();
         var character=System.Array.Find(visit.characters,item=>item.referenceName==role);
-        effects.Initialize(body,visit.arCamera,character.petal,character.season);
+        effects.Initialize(body,visit.arCamera,character ? character.petal : null);
     }
 
     public void SwitchRole()
     {
         if(!active)return;
-        int count=visit.characters.Length;
-        int current=System.Array.FindIndex(visit.characters,item=>item.referenceName==role);
-        for(int offset=1;offset<count;offset++)
+        if(actor && (!anchor || !surface || anchor.trackingState!=TrackingState.Tracking ||
+            surface.trackingState!=TrackingState.Tracking || ARSession.state!=ARSessionState.SessionTracking))
         {
-            var target=visit.characters[(current+offset)%count];
-            if(!visit.Album.Contains(target.referenceName) || !FlowerCompanion.IsAvailable(target.referenceName))continue;
-            CancelGesture();
-            requireLift=true;
-            role=target.referenceName;
-            if(actor && anchor && surface)
-            {
-                Vector3 position=actor.position;
-                Quaternion heading=actor.rotation;
-                actor.gameObject.SetActive(false);
-                effects.gameObject.SetActive(false);
-                Destroy(actor.gameObject);
-                Destroy(effects.gameObject);
-                SpawnActor(position,heading);
-                flower.gameObject.SetActive(false);
-            }
-            visit.page.WorldHint("同行 · "+target.characterName);
-            Debug.Log("World swapped "+role);
+            visit.page.WorldHint("正在找回原来的位置");
             return;
         }
+        var target=CompanionProfile.NextOwned(role,visit.Album);
+        if(target==null)return;
+        CancelGesture();
+        requireLift=true;
+        role=target.Id;
+        if(actor && anchor && surface)
+        {
+            Vector3 position=actor.position;
+            Quaternion heading=actor.rotation;
+            actor.gameObject.SetActive(false);
+            effects.gameObject.SetActive(false);
+            Destroy(actor.gameObject);
+            Destroy(effects.gameObject);
+            SpawnActor(position,heading);
+            flower.gameObject.SetActive(false);
+        }
+        visit.page.WorldHint("同行 · "+target.Name);
+        Debug.Log("World swapped "+role);
     }
 
     void Update()
@@ -299,7 +299,7 @@ public sealed class WorldWalk : MonoBehaviour
             if(direction.sqrMagnitude>.000001f)
                 actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),TurnDegreesPerSecond*Time.deltaTime);
             float alignment=Vector3.Dot(actor.forward,direction.normalized);
-            float topSpeed=body.Height*(role=="autumn_manwu"?.45f:.39f)*scale;
+            float topSpeed=body.Height*body.Profile.Pace*scale;
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
             walkSpeed=Mathf.MoveTowards(walkSpeed,Mathf.Min(topSpeed,braking)*Mathf.InverseLerp(.25f,.94f,alignment),topSpeed*3*Time.deltaTime);
             var next=Vector2.MoveTowards(from,goal,Time.deltaTime*walkSpeed);

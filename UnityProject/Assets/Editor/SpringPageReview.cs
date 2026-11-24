@@ -285,12 +285,13 @@ public static class SpringPageReview
             }
             finally { camera.targetTexture=large; RenderTexture.ReleaseTemporary(small); }
             var hiddenPortrait=detail.Find("立绘").GetComponent<Button>();
+            var invite=detail.Find("来到现实");
             var back=detail.Find("返回花册").GetComponent<Button>();
             grid.Find("时见").GetComponent<Button>().onClick.Invoke();
-            Check(hiddenPortrait.interactable,"集齐四季后未开放时见相遇");
+            Check(hiddenPortrait.interactable && !invite.gameObject.activeSelf,"时见的相遇与现实同行权限错误");
             hiddenPortrait.onClick.Invoke();
             hiddenPortrait.onClick.Invoke();
-            Check(visit.Album.Contains(AlbumModelViewer.TimeKeeper) && !visit.Album.Contains(AlbumModelViewer.StarDreamer),"隐藏身份收录串联");
+            Check(visit.Album.Contains(AlbumModelViewer.TimeKeeper) && !visit.Album.Contains(AlbumModelViewer.StarDreamer) && invite.gameObject.activeSelf,"隐藏身份收录串联");
             back.onClick.Invoke();
             string seasonId=visit.characters[0].referenceName;
             visit.Album.Reset(new[]{seasonId});
@@ -303,6 +304,10 @@ public static class SpringPageReview
             hiddenPortrait.onClick.Invoke();
             back.onClick.Invoke();
             Check(visit.Album.Contains(AlbumModelViewer.StarDreamer) && count.text.EndsWith("4 / 4"),"第二隐藏相遇或四季计数错误");
+            Check(CompanionProfile.OwnedCount(visit.Album)==6 &&
+                CompanionProfile.NextOwned("winter_xueling",visit.Album).Id==AlbumModelViewer.TimeKeeper &&
+                CompanionProfile.NextOwned(AlbumModelViewer.StarDreamer,visit.Album).Id==SpringVisit.ReferenceName,
+                "原地轮换应经过六名已收录角色并回到春知意");
             grid.Find("返回封面").GetComponent<Button>().onClick.Invoke();
             Debug.Log("Album persistence, duplicate collection, detail mapping and navigation checks passed");
         }

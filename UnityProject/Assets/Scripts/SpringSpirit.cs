@@ -85,12 +85,20 @@ public sealed class SpringSpirit : MonoBehaviour
                 petals[i].localRotation = Quaternion.Euler(90, 0, 0);
                 petals[i].localScale = Vector3.one * (ring * 6 + pulse * 2);
                 petals[i].GetComponent<SpriteRenderer>().color = new Color(1, 1, 1, Mathf.Sin(ring * Mathf.PI));
+                if(companion && now-burst>.46f && now-burst<1.27f && i<3)
+                {
+                    float glow=Mathf.Clamp01((now-burst-.46f)*1.2346f);
+                    petals[i].position=companion.EffectPoint+companion.transform.up*(.020f*i+.043f*glow);
+                    petals[i].rotation=Camera.main.transform.rotation;
+                    petals[i].localScale=Vector3.one*(.65f+i*.23f)*(1-glow);
+                    petals[i].GetComponent<SpriteRenderer>().color=new Color(1,.91f,.42f,1-glow);
+                }
                 continue;
             }
             float a = i * 2.4f + age * .7f;
             float r = .026f + .017f * Mathf.Sin(i * 7) + .033f * pulse;
             petals[i].localPosition = new Vector3(Mathf.Cos(a) * r, .105f * (1 - t), Mathf.Sin(a) * r);
-            float release=season==Season.Autumn?FlowerCompanion.AutumnLeafRelease:.26f;
+            float release=companion ? companion.Profile.Release : .26f;
             if(companion && now-burst>=release && now-burst<release+.79f)
             {
                 float flight=(now-burst-release)/.79f;
@@ -100,7 +108,7 @@ public sealed class SpringSpirit : MonoBehaviour
                     float arc=i*2.4f+flight*5.2f;
                     spread=companion.transform.right*Mathf.Cos(arc)+companion.transform.forward*Mathf.Sin(arc);
                 }
-                petals[i].position=companion.Palm+spread*(flight*.042f)+companion.transform.up*(.045f*Mathf.Sin(flight*Mathf.PI));
+                petals[i].position=companion.EffectPoint+spread*(flight*.042f)+companion.transform.up*(.045f*Mathf.Sin(flight*Mathf.PI));
             }
             petals[i].rotation = Camera.main.transform.rotation * Quaternion.Euler(0, 0, i * 43 + age * 65);
             petals[i].localScale = Vector3.one * Mathf.Sin(Mathf.PI * t);

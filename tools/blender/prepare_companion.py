@@ -1,4 +1,4 @@
-"""Open the released spring_zhiyi.blend or autumn_manwu.blend and run with -- <Unity project parent>.
+"""Open an original gallery Blender file and run with -- <Unity project parent>.
 
 The mobile figurine and plinth are a single fused surface. Slice below both ankles,
 keep the connected character and close its two soles before skinning the mobile copy.
@@ -6,6 +6,8 @@ keep the connected character and close its two soles before skinning the mobile 
 from pathlib import Path
 import math
 import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from companion_landmarks import PROFILES, candidates_for
 
 import bmesh
 import bpy
@@ -13,16 +15,17 @@ from mathutils import Vector
 
 root = Path(sys.argv[sys.argv.index("--") + 1]).resolve()
 role = Path(bpy.data.filepath).stem
-if role not in ('spring_zhiyi', 'autumn_manwu'):
-    raise ValueError("Open the original spring or autumn gallery Blender file")
+if role not in ('spring_zhiyi', 'autumn_manwu') and role not in PROFILES:
+    raise ValueError("Open an original gallery Blender file")
 autumn = role == 'autumn_manwu'
+profile = PROFILES.get(role)
 body = next(obj for obj in bpy.context.scene.objects if obj.type == 'MESH')
 bpy.context.view_layer.objects.active = body
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 mesh = bmesh.new()
 mesh.from_mesh(body.data)
 bmesh.ops.remove_doubles(mesh, verts=list(mesh.verts), dist=0.00005)
-sole = .049 if autumn else .117
+sole = profile["sole"] if profile else (.049 if autumn else .117)
 bmesh.ops.bisect_plane(mesh, geom=list(mesh.verts)+list(mesh.edges)+list(mesh.faces),
                             plane_co=(0,0,sole), plane_no=(0,0,1), clear_inner=True)
 if autumn:
@@ -38,24 +41,51 @@ if autumn:
                                plane_co=(-.006,0,0), plane_no=(1,0,0), dist=.00001)
     edges = [e for e in seam['geom_cut'] if isinstance(e, bmesh.types.BMEdge)]
     bmesh.ops.split_edges(mesh, edges=edges)
-# Exclude disconnected petals of the old pedestal below the hem.
-seed = max(mesh.verts, key=lambda v:v.co.z)
-connected = {seed}
-stack = [seed]
-while stack:
-    for edge in stack.pop().link_edges:
-        for vertex in edge.verts:
-            if vertex not in connected:
-                connected.add(vertex)
-                stack.append(vertex)
-bmesh.ops.delete(mesh, geom=[v for v in mesh.verts if v not in connected], context='VERTS')
+# Trim the remains of fused stands below the shoe collars. These regions are
+# outside the sole silhouettes and must not rise as a plane during a step.
+def is_stand_fragment(vertex):
+    x,y,z = vertex.co
+    if role=='summer_huajian':
+        return z<.130 and (y>.113 or x>.110 or x<-.118)
+    if role=='winter_xueling':
+        return ((z<.32 and (x>.111 or x<-.113 or y>.086)) or
+                (z<.119 and (y<-.113 or x>.095 or x<-.090)))
+    if role=='hidden_shijian':
+        return z<.079 and (abs(x+.006)>.082 or y<-.127 or y>.033)
+    return False
+
+if profile:
+    fragments = [v for v in mesh.verts if is_stand_fragment(v)]
+    if fragments:
+        bmesh.ops.delete(mesh, geom=fragments, context='VERTS')
+# Keep the main figure and separate head ornaments while discarding loose stand pieces.
+remaining = set(mesh.verts)
+parts = []
+while remaining:
+    piece = [remaining.pop()]
+    for vertex in piece:
+        for edge in vertex.link_edges:
+            other = edge.other_vert(vertex)
+            if other in remaining:
+                remaining.remove(other)
+                piece.append(other)
+    parts.append(piece)
+# Preserve the older spring and autumn selection when rebuilding those sculpts.
+main = max(parts,key=len) if profile else max(parts,key=lambda part:max(v.co.z for v in part))
+extras = [v for part in parts if part is not main
+          and (not profile or len(part)<20 or min(v.co.z for v in part)<.69)
+          for v in part]
+bmesh.ops.delete(mesh, geom=extras, context='VERTS')
 rim = [e for e in mesh.edges if e.is_boundary and
        (all(abs(v.co.z-sole)<.0001 for v in e.verts) or
-        (autumn and all(v.co.z<.302 for v in e.verts)))]
+        (autumn and all(v.co.z<.302 for v in e.verts)) or
+        (role=='winter_xueling' and all(v.co.z<.323 for v in e.verts)) or
+        (role=='summer_huajian' and all(v.co.z<.132 for v in e.verts)) or
+        (role=='hidden_shijian' and all(v.co.z<.081 for v in e.verts)))]
 bmesh.ops.holes_fill(mesh, edges=rim, sides=0)
 mesh.to_mesh(body.data)
 mesh.free()
-rig_name = 'autumn_manwu_rig' if autumn else 'SpringRig'
+rig_name = 'SpringRig' if role=='spring_zhiyi' else role+'_rig'
 arm = bpy.data.armatures.new(rig_name)
 rig = bpy.data.objects.new(rig_name, arm)
 bpy.context.collection.objects.link(rig)
@@ -68,6 +98,8 @@ def bone(name, head, tail, parent=None):
     if parent:
         b.parent = arm.edit_bones[parent]
 hips, chest, head = ((-.007,-.045,.389),(-.006,-.064,.505),(-.011,-.029,.728)) if autumn else ((0,0,.39),(0,0,.47),(0,-.02,.65))
+if profile:
+    hips,chest,head=profile['torso']
 bone('Hips',hips,chest)
 bone('Chest',chest,head,'Hips')
 bone('Head',head,(0,0,1.04),'Chest')
@@ -95,10 +127,17 @@ for side,sgn in [('L',1),('R',-1)]:
             curl_top,curl_end=(-.09,.037,.80),(-.087,.03,.68)
         hem_top,hem_end=at(.061,-.062,.475),at(.156,.025,.304)
         toe=(ankle[0],ankle[1]-.053,.071)
+    fingertips=at(abs(wrist[0])+.012,wrist[1]-.015,wrist[2]-.018)
+    if profile:
+        model=profile[side]
+        hip,knee,ankle,toe=model['leg']
+        shoulder,elbow,wrist,fingertips=model['arm']
+        curl_top,curl_end=model['curl']
+        hem_top,hem_end=model['hem']
     for n,h,t,parent in [('Thigh',hip,knee,'Hips'),('Shin',knee,ankle,'Thigh'+side),
                          ('Foot',ankle,toe,'Shin'+side),
                          ('UpperArm',shoulder,elbow,'Chest'),('Forearm',elbow,wrist,'UpperArm'+side),
-                         ('Palm',wrist,at(abs(wrist[0])+.012,wrist[1]-.015,wrist[2]-.018),'Forearm'+side),
+                         ('Palm',wrist,fingertips,'Forearm'+side),
                          ('Curl',curl_top,curl_end,'Head'),
                          ('Hem',hem_top,hem_end,'Hips')]:
         bone(n+side,h,t,parent)
@@ -124,7 +163,7 @@ while lower:
     center = sum(body.data.vertices[i].co.x for i in island) / len(island)
     for index in island:
         leg_side[index] = 'L' if center > (-.006 if autumn else .025) else 'R'
-if set(leg_side.values()) != {'L', 'R'}:
+if not profile and set(leg_side.values()) != {'L', 'R'}:
     raise ValueError("Both shoes must be present before skinning")
 if autumn:
     # The color map marks the fused amber skirt and the pale sleeve on opposite
@@ -150,6 +189,18 @@ if autumn:
     skin_at /= np.maximum(samples,1)
 for vertex in body.data.vertices:
     p=vertex.co; x,y,z=p; side=leg_side.get(vertex.index, 'L' if x>0 else 'R')
+    if profile:
+        weights=[]
+        for name,influence in candidates_for(role,profile,p,arm):
+            b=arm.bones[name]
+            axis=b.tail_local-b.head_local
+            t=max(0,min(1,(p-b.head_local).dot(axis)/axis.length_squared))
+            d=(p-b.head_local-t*axis).length
+            weights.append((influence/(.016+d)**4,name))
+        weights=sorted(weights,reverse=True)[:4]
+        total=sum(w for w,n in weights)
+        for w,n in weights: groups[n].add([vertex.index],w/total,'REPLACE')
+        continue
     if z < (.150 if autumn else .173):
         # A slipper and its sole keep their shape, including the toe across the midline.
         groups['Foot'+side].add([vertex.index], 1.0, 'REPLACE')

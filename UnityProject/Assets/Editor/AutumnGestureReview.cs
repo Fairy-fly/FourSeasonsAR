@@ -72,7 +72,7 @@ public static class AutumnGestureReview
                     Vector3 point = head.InverseTransformPoint(proxy.transform.TransformPoint(vertices[face[i]]));
                     peak = Mathf.Max(peak, head.TransformVector(point-rest[i]).magnitude);
                 }
-                if (index == Mathf.CeilToInt(30 * FlowerCompanion.AutumnLeafRelease))
+                if (index == Mathf.CeilToInt(30 * body.Profile.Release))
                     released = actor.transform.InverseTransformPoint(body.Palm);
 
                 camera.Render();

@@ -27,10 +27,7 @@ public sealed partial class SpringPage
     {
         if(open)
         {
-            int available=0;
-            foreach(var character in visit.characters)
-                if(FlowerCompanion.IsAvailable(character.referenceName) && visit.Album.Contains(character.referenceName))available++;
-            swap.gameObject.SetActive(available>=2);
+            swap.gameObject.SetActive(CompanionProfile.OwnedCount(visit.Album)>=2);
             modelViewer.Close();home.SetActive(false);coverLayer.SetActive(false);
             scanner.SetActive(false);albumPaper.SetActive(false);album.gameObject.SetActive(false);
         }
@@ -40,8 +37,14 @@ public sealed partial class SpringPage
     {
         WorldDisplay(false);
         OpenAlbum();
+        if(string.IsNullOrEmpty(role) || !visit.Album.Contains(role))return;
+        if(role==AlbumModelViewer.TimeKeeper || role==AlbumModelViewer.StarDreamer)
+        {
+            OpenHiddenDetail(role);
+            return;
+        }
         foreach(var c in visit.characters)
-            if(c.referenceName==role && visit.Album.Contains(role)){OpenDetail(c);break;}
+            if(c.referenceName==role){OpenDetail(c);break;}
     }
     void ArrangeActions(string id)
     {
