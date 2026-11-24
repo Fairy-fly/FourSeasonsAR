@@ -7,12 +7,14 @@ public static class SpringGaitReview
 {
     public static void Run()
     {
-        foreach(var profile in CompanionProfile.All)Review(profile.Id);
+        var stretched=new System.Collections.Generic.List<string>();
+        foreach(var profile in CompanionProfile.All)
+            if(!Review(profile.Id))stretched.Add(profile.Id);
+        if(stretched.Count>0)
+            throw new InvalidOperationException("Shoes stretched while stepping: "+string.Join(", ",stretched));
     }
 
-    public static void ReviewAutumn() => Review("autumn_manwu");
-
-    static void Review(string id)
+    static bool Review(string id)
     {
         var actor=new GameObject("Spring gait review");
         var camera=new GameObject("Side camera").AddComponent<Camera>();
@@ -50,7 +52,7 @@ public static class SpringGaitReview
             Vector3[] start={soles[0],soles[1]};
             float drift=0, rise=0;
             int held=0, previousSwing=-1, turnStart=0, turnContacts=0;
-            string dir=Path.GetFullPath("../reports/evidence/gait-rc1-"+id);
+            string dir=Path.GetFullPath("../reports/evidence/gait-rc3-"+id);
             Directory.CreateDirectory(dir);
             camera.targetTexture=frame;camera.orthographic=true;camera.orthographicSize=.153f;
             camera.nearClipPlane=.01f;camera.farClipPlane=2;camera.clearFlags=CameraClearFlags.SolidColor;
@@ -63,6 +65,7 @@ public static class SpringGaitReview
             proxy.AddComponent<MeshFilter>().sharedMesh=mesh;
             proxy.AddComponent<MeshRenderer>().sharedMaterial=skin.sharedMaterial;
             skin.forceRenderingOff=true;
+            var shoeCheck=new ShoeShapeReview(body.Profile,skin,mesh,proxy.transform,actor.transform);
             var floor=new GameObject("Floor").transform;
             floor.SetParent(camera.transform,false);
             floor.rotation=Quaternion.identity;
@@ -101,6 +104,7 @@ public static class SpringGaitReview
                 camera.transform.position=focus+(i>=235?new Vector3(.055f,.023f,-.35f):new Vector3(.31f,.016f,.12f));
                 camera.transform.LookAt(focus);
                 skin.BakeMesh(mesh);
+                shoeCheck.Measure(mesh);
                 if(i==0)Debug.Log($"Baked mesh bounds={mesh.bounds} skin scale={skin.transform.lossyScale:F4}");
                 floor.SetPositionAndRotation(new Vector3(60,0,0),Quaternion.identity);
                 shadow.Draw();
@@ -112,6 +116,7 @@ public static class SpringGaitReview
             Debug.Log($"{id} gait: stance drift={drift:F5} m, peak frame rise={rise:F5} m, contacts={stamps}, pivot contacts={turnContacts}, frames={count}");
             if(turnContacts<3 || stamps<5 || stamps>45 || drift>.003f || rise<.00035f || gait.SwingFoot!=-1)
                 throw new InvalidOperationException(id+" gait failed contact, clearance or stopping checks");
+            return shoeCheck.Passed();
         }
         finally
         {

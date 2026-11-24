@@ -89,7 +89,7 @@ public static class SpringSample
         }
         var shader = Resources.Load<Shader>("Gallery/FigureStudio");
         if (!shader || ShaderUtil.ShaderHasError(shader)) throw new BuildFailedException("花册着色器错误");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-2.0-rc.2");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-2.0-rc.3");
     }
 
     public static void ConfigurePolish()

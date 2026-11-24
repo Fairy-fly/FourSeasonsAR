@@ -1,5 +1,7 @@
 """Landmarks from the four gallery sculpts, in their unscaled Blender coordinates."""
 
+from companion_shoes import SHOES
+
 # Each leg has hip, knee, ankle and toe coordinates. Each arm has shoulder, elbow,
 # wrist and fingertip coordinates. Left and right are the character's own sides.
 PROFILES = {
@@ -88,16 +90,14 @@ def candidates_for(role, profile, point, arm):
         if z<.60 or distance_to_bone(point,arm.bones['PalmR']) < .055:
             return [('PalmR',1)]
     if z < .435:
-        leg_names=('Thigh','Shin','Foot')
-        if role.startswith('hidden_'):
-            # Below the dresses only the front of the shoes is exposed. Keep the
-            # flowing hem separate so it cannot be pulled through a stepping leg.
-            if z<.145 and y<-.008 and abs(x-center)<.079:
-                return [('Foot'+side,1)]
-        elif abs(x-center)<.114 and y<.080:
-            if z<.156:
-                return [('Foot'+side,1)]
-            return [(name+side,1) for name in leg_names]+[('Hem'+side,.13)]
+        # Unselected lower islands are skirt, ribbons, or decoration. Only the
+        # labelled shoe and leg islands get lower-leg weights.
+        top,_,_=SHOES[role]
+        if not role.startswith('hidden_') and z>=top:
+            thigh='Thigh'+side
+            distance=distance_to_bone(point,arm.bones[thigh])
+            if distance<.043:
+                return [(thigh,1),('Hips',.45),('Hem'+side,.20)]
         return [('Hem'+side,1),('Hips',.22)]
     names=[('Chest',1),('Hips',1),('Head',.6),('Hem'+side,.7)]
     if z>=profile['head_height']-.026:

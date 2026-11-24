@@ -8,6 +8,7 @@ import math
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from companion_landmarks import PROFILES, candidates_for
+from companion_shoes import SHOES, split_fused_pair, find_leg_shells, shoe_weights, follow_thighs
 
 import bmesh
 import bpy
@@ -49,7 +50,8 @@ def is_stand_fragment(vertex):
         return z<.130 and (y>.113 or x>.110 or x<-.118)
     if role=='winter_xueling':
         return ((z<.32 and (x>.111 or x<-.113 or y>.086)) or
-                (z<.119 and (y<-.113 or x>.095 or x<-.090)))
+                (z<.177 and (y>.062 or x>.093 or x<-.086)) or
+                (z<.113 and y<-.105))
     if role=='hidden_shijian':
         return z<.079 and (abs(x+.006)>.082 or y<-.127 or y>.033)
     return False
@@ -83,6 +85,8 @@ rim = [e for e in mesh.edges if e.is_boundary and
         (role=='summer_huajian' and all(v.co.z<.132 for v in e.verts)) or
         (role=='hidden_shijian' and all(v.co.z<.081 for v in e.verts)))]
 bmesh.ops.holes_fill(mesh, edges=rim, sides=0)
+if role in SHOES:
+    split_fused_pair(mesh,role)
 mesh.to_mesh(body.data)
 mesh.free()
 rig_name = 'SpringRig' if role=='spring_zhiyi' else role+'_rig'
@@ -143,6 +147,8 @@ for side,sgn in [('L',1),('R',-1)]:
         bone(n+side,h,t,parent)
 bpy.ops.object.mode_set(mode='OBJECT')
 groups = {b.name:body.vertex_groups.new(name=b.name) for b in arm.bones}
+shoe_shells=find_leg_shells(body,role,profile) if role in SHOES else {}
+thighs=follow_thighs(body,role,shoe_shells) if shoe_shells else {}
 # Below the knees the shoes are two separate islands, even where a shoe
 # crosses x=0. Assign each entire island to its own leg before blending joints.
 lower = {v.index for v in body.data.vertices if v.co.z < .245}
@@ -190,6 +196,11 @@ if autumn:
 for vertex in body.data.vertices:
     p=vertex.co; x,y,z=p; side=leg_side.get(vertex.index, 'L' if x>0 else 'R')
     if profile:
+        shoe=shoe_shells.get(vertex.index)
+        if shoe:
+            for name,weight in shoe_weights(role,shoe,z,profile):
+                if weight>0: groups[name].add([vertex.index],weight,'REPLACE')
+            continue
         weights=[]
         for name,influence in candidates_for(role,profile,p,arm):
             b=arm.bones[name]
@@ -197,7 +208,15 @@ for vertex in body.data.vertices:
             t=max(0,min(1,(p-b.head_local).dot(axis)/axis.length_squared))
             d=(p-b.head_local-t*axis).length
             weights.append((influence/(.016+d)**4,name))
-        weights=sorted(weights,reverse=True)[:4]
+        total=sum(w for w,n in weights)
+        left,right=thighs.get(vertex.index,(0,0))
+        fabric=1-left-right
+        blended={name:fabric*weight/total for weight,name in weights}
+        for limb,amount in (('L',left),('R',right)):
+            if amount>0:
+                for name,weight in shoe_weights(role,limb,z,profile):
+                    if weight>0: blended[name]=blended.get(name,0)+weight*amount
+        weights=sorted(((w,n) for n,w in blended.items() if w>0),reverse=True)[:4]
         total=sum(w for w,n in weights)
         for w,n in weights: groups[n].add([vertex.index],w/total,'REPLACE')
         continue
