@@ -53,22 +53,25 @@ public sealed partial class SpringPage : MonoBehaviour
         title.Configure(Resources.Load<Texture2D>("Album/title-home"),Ink,new Color32(194,120,116,255),1.45f);
         Label(Bounds(heading,"副题",.06f,.769f,.94f,.809f),"四季角色卡 · 3D AR 体验",20,Ink);
 
-        var start = Fit(heading,"开始扫描",.22f,.078f,.78f,.158f,4.05f);
+        var start = Fit(heading,"开始扫描",.22f,.143f,.78f,.225f,4.05f);
         var startSurface = Surface(start,Plum);
-        Surface(Inset(start,"描金",2.6f), Honey);
-        Surface(Inset(start,"漆面",3.6f), Plum).SetGradient(new Color32(140,73,91,255), new Color32(86,39,65,255));
+        var startRim=Surface(Inset(start,"描金",2.6f),Honey);
+        var startFace=Surface(Inset(start,"漆面",3.6f),Plum).SetGradient(new Color32(140,73,91,255),new Color32(86,39,65,255));
+        StyleButtons(startSurface,startRim,startFace);
         Label(Bounds(start,"按钮文字",.08f,.08f,.81f,.92f),"开始扫描",29,Parchment);
         Blossom(Box(start,"樱印",.855f,.5f,25,25));
         MakeButton(start,startSurface,visit.Begin);
-        homeStatus = Label(Bounds(heading,"启动提示",.05f,.002f,.95f,.075f),"",17,Ink);
-        AlbumButton(heading,"四季花册",.713f,.94f,.948f,.99f,OpenAlbum,true);
+        homeStatus = Label(Bounds(heading,"启动提示",.05f,.002f,.95f,.058f),"",17,Ink);
+        AlbumButton(heading,"四季花册",.535f,.064f,.806f,.126f,OpenAlbum,true);
 
         var scan = Bounds(safe,"扫描",0,0,1,1);
         scanner = scan.gameObject;
         scanner.AddComponent<FlowerPageEntrance>();
         back = Box(scan,"返回封面",0,1,52,52);
         back.anchoredPosition = new Vector2(52,-51);
-        MakeButton(back,Surface(back,Glass).SetGradient(new Color32(90,72,76,218),new Color32(42,32,45,229)),visit.Home);
+        var backSurface=Surface(back,Glass).SetGradient(new Color32(90,72,76,218),new Color32(42,32,45,229));
+        StyleButtons(backSurface);
+        MakeButton(back,backSurface,visit.Home);
         foreach (int direction in new[]{-1,1})
         {
             var stroke = Box(back,"箭头",.48f,.5f,16,2.6f);
@@ -125,6 +128,7 @@ public sealed partial class SpringPage : MonoBehaviour
         BuildEncounters();
         BuildWorldPage();
         BuildMovementSettings(heading);
+        BuildAppearance();
         ShowScanner(false);
         UpdateLayout();
     }
@@ -141,6 +145,7 @@ public sealed partial class SpringPage : MonoBehaviour
     public void ShowScanner(bool scanning)
     {
         if(movementSettings)movementSettings.gameObject.SetActive(false);
+        if(appearanceSettings)appearanceSettings.gameObject.SetActive(false);
         if (modelViewer) modelViewer.Close();
         if(bubble) bubble.gameObject.SetActive(false);
         if(flight) flight.enabled=false;

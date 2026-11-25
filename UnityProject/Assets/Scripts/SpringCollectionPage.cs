@@ -57,7 +57,8 @@ public sealed partial class SpringPage
             var edge = Surface(card,Honey,true);
             var paper = Inset(card,"笺纸",3);
             var tone = SeasonInk[(int)character.season];
-            Surface(paper,Parchment,true).SetGradient(Color.Lerp(tone,Parchment,.82f),Color.Lerp(tone,Parchment,.55f));
+            var face=Surface(paper,Parchment,true).SetGradient(Color.Lerp(tone,Parchment,.82f),Color.Lerp(tone,Parchment,.55f));
+            StyleCards(edge,face);
             var stage = Bounds(paper,"季景",.014f,.207f,.986f,.988f);
             SetSeasonScene(stage.gameObject.AddComponent<AlbumScenery>(),character.season);
             var portrait = Portrait(Bounds(stage,"立绘",.055f,.014f,.945f,.99f));
@@ -82,9 +83,11 @@ public sealed partial class SpringPage
         detailName = Label(Bounds(leaf,"题名",.07f,.845f,.93f,.940f),"",54,Ink,brushFont);
         var framed = Bounds(leaf,"画境",.052f,.235f,.948f,.805f);
         seasonFrame = framed.gameObject;
-        Surface(framed,Honey,true);
+        var sceneBorder=Surface(framed,Honey,true);
         var interior = Inset(framed,"季景",3);
-        detailScenery = interior.gameObject.AddComponent<AlbumScenery>();
+        var sceneFace=Surface(interior,Parchment,true);
+        StyleCards(sceneBorder,sceneFace);
+        detailScenery=Bounds(interior,"底纸",0,0,1,1).gameObject.AddComponent<AlbumScenery>();
         detailPortrait = Portrait(Bounds(leaf,"立绘",.09f,.245f,.91f,.801f));
         encounterTouch=detailPortrait.gameObject.AddComponent<FlowerButton>();
         encounterTouch.targetGraphic=detailPortrait;
@@ -138,7 +141,8 @@ public sealed partial class SpringPage
         var seat=Bounds(parent,title,x,.111f,x+.43f,.245f);
         var edge=Surface(seat,Honey,true);
         var art=Inset(seat,"藏品",2.3f);
-        art.gameObject.AddComponent<AlbumScenery>().SelectPaper(pearl ? PearlPaper : StarPaper);
+        StyleCards(edge,Surface(art,Parchment,true));
+        Bounds(art,"底纸",0,0,1,1).gameObject.AddComponent<AlbumScenery>().SelectPaper(pearl ? PearlPaper : StarPaper);
         string id=pearl ? AlbumModelViewer.TimeKeeper : AlbumModelViewer.StarDreamer;
         Portrait(Bounds(art,"藏品立绘",.46f,.05f,.96f,.97f)).sprite=Resources.Load<Sprite>("Gallery/"+id+"/Portrait");
         Air(art,pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
@@ -171,6 +175,7 @@ public sealed partial class SpringPage
         bool primary = title == "查看 3D";
         var rim = Surface(rect,Honey,true).SetGradient(new Color32(235,202,161,255),new Color32(163,112,81,255));
         var face = Surface(Inset(rect,"漆面",coverEntry ? 2.7f : 2.25f),Parchment,true);
+        StyleButtons(rim,face);
         if(coverEntry) face.SetGradient(new Color32(155,104,126,255),new Color32(99,49,75,255));
         else if (primary) face.SetGradient(new Color32(66,117,104,255),new Color32(33,67,67,255));
         else face.SetGradient(new Color32(255,249,235,255),new Color32(224,202,169,255));

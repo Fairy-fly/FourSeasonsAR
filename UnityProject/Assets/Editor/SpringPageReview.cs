@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.5-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.6-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -42,6 +42,7 @@ public static class SpringPageReview
             CheckTitle(safe.Find("封面/书名").GetComponent<InkTitle>(),camera,"Home");
             CheckAlbum(page,safe,camera,folder);
             CheckMovement(page,safe,camera,folder);
+            CheckAppearance(page,safe,camera,folder);
             page.ShowScanner(true);
             page.SetTracking(false,false,true);
             Capture(camera,folder,"scan");
@@ -81,13 +82,14 @@ public static class SpringPageReview
         var key=MovementPreference.Key;
         bool stored=PlayerPrefs.HasKey(key);
         int original=PlayerPrefs.GetInt(key);
-        var options=new[] {MovementPreference.Speed,MovementPreference.Clearance,MovementPreference.Amplitude};
-        var titles=new[] {"移动速度","离地高度","起伏幅度"};
+        var options=new[] {MovementPreference.Speed,MovementPreference.Turn,MovementPreference.Clearance,MovementPreference.Amplitude};
+        var titles=new[] {"移动速度","转向速度","离地高度","起伏幅度"};
         var saved=System.Array.ConvertAll(options,x=>PlayerPrefs.GetInt(x.Key,int.MinValue));
         var settings=safe.Find("移动设置");
         var hover=settings.Find("漂浮");
         var walk=settings.Find("步行");
         var speedUp=settings.Find("移动速度/增加").GetComponent<Button>();
+        var turnUp=settings.Find("转向速度/增加").GetComponent<Button>();
         var heightUp=settings.Find("离地高度/增加").GetComponent<Button>();
         var bobUp=settings.Find("起伏幅度/增加").GetComponent<Button>();
         try
@@ -96,9 +98,15 @@ public static class SpringPageReview
             foreach(var option in options)PlayerPrefs.DeleteKey(option.Key);
             var albumEntry=(RectTransform)safe.Find("封面/四季花册/漆面");
             var settingsEntry=(RectTransform)safe.Find("封面/设置/漆面");
+            var scanSlot=(RectTransform)safe.Find("封面/开始扫描位置");
+            var settingsButton=(RectTransform)settingsEntry.parent;
+            var albumButton=(RectTransform)albumEntry.parent;
             if(albumEntry.offsetMin!=settingsEntry.offsetMin ||
                 albumEntry.GetComponent<SpringSurface>().color!=settingsEntry.GetComponent<SpringSurface>().color)
                 throw new System.InvalidOperationException("Cover buttons must share the same finish and border");
+            if(scanSlot.anchorMax.y>.25f || settingsButton.anchorMax.y>=scanSlot.anchorMin.y ||
+                settingsButton.anchorMax.y!=albumButton.anchorMax.y || settingsButton.anchorMax.x>=albumButton.anchorMin.x)
+                throw new System.InvalidOperationException("Cover actions must occupy two separate rows at the bottom");
             safe.Find("封面/设置").GetComponent<Button>().onClick.Invoke();
             if(!settings.gameObject.activeSelf || MovementPreference.ExperimentalWalk ||
                 !hover.Find("笺纸/状态").gameObject.activeSelf ||
@@ -132,7 +140,7 @@ public static class SpringPageReview
             settings.Find("返回封面").GetComponent<Button>().onClick.Invoke();
             safe.Find("封面/设置").GetComponent<Button>().onClick.Invoke();
             if(!MovementPreference.ExperimentalWalk || !walk.Find("笺纸/状态").gameObject.activeSelf ||
-                !speedUp.interactable || heightUp.interactable || bobUp.interactable)
+                !speedUp.interactable || !turnUp.interactable || heightUp.interactable || bobUp.interactable)
                 throw new System.InvalidOperationException("Experimental gait selection did not persist");
             heightUp.onClick.Invoke();
             for(int i=0;i<options.Length;i++)
@@ -154,6 +162,67 @@ public static class SpringPageReview
             PlayerPrefs.Save();
         }
         Debug.Log("Movement settings defaults, bounds, mode availability, persistence, button styling and glyphs passed");
+    }
+
+    static void CheckAppearance(SpringPage page,Transform safe,Camera camera,string folder)
+    {
+        const int unset=-1;
+        string cardKey=SpringPage.CardStyleKey, buttonKey=SpringPage.ButtonStyleKey;
+        int priorCard=PlayerPrefs.GetInt(cardKey,unset), priorButton=PlayerPrefs.GetInt(buttonKey,unset);
+        var settings=safe.Find("移动设置");
+        var appearance=safe.Find("外观设置");
+        var settingsButton=safe.Find("封面/设置").GetComponent<Button>();
+        var albumButton=safe.Find("封面/四季花册").GetComponent<Button>();
+        var album=safe.Find("花册/目录");
+        var cardRim=album.Find(page.visit.characters[0].referenceName).GetComponent<SpringSurface>();
+        int Vertices(SpringSurface surface)
+        {
+            Canvas.ForceUpdateCanvases();
+            return surface.canvasRenderer.GetMesh().vertexCount;
+        }
+        void Choose(string path)=>appearance.Find(path).GetComponent<Button>().onClick.Invoke();
+        try
+        {
+            settingsButton.onClick.Invoke();
+            settings.Find("外观样式").GetComponent<Button>().onClick.Invoke();
+            Choose("人物卡框/圆角");
+            Choose("按钮样式/折角");
+            appearance.GetComponent<FlowerPageEntrance>().SetProgress(1);
+            Capture(camera,folder,"appearance-options");
+            Choose("返回设置");
+            settings.Find("返回封面").GetComponent<Button>().onClick.Invoke();
+            if(Vertices(albumButton.GetComponent<SpringSurface>())!=9)
+                throw new System.InvalidOperationException("The cover button did not apply the chosen bevel");
+            Capture(camera,folder,"cover-beveled");
+            albumButton.onClick.Invoke();
+            if(Vertices(cardRim)!=101 || !cardRim.transform.Find("笺纸").GetComponent<Mask>())
+                throw new System.InvalidOperationException("The card frame did not use the chosen rounding and clipping");
+            Capture(camera,folder,"album-rounded");
+            album.Find("返回封面").GetComponent<Button>().onClick.Invoke();
+            settingsButton.onClick.Invoke();
+            settings.Find("外观样式").GetComponent<Button>().onClick.Invoke();
+            if(PlayerPrefs.GetInt(cardKey)!=(int)FrameStyle.Rounded ||
+                PlayerPrefs.GetInt(buttonKey)!=(int)FrameStyle.Beveled ||
+                !appearance.Find("人物卡框/圆角/笺纸/状态").gameObject.activeSelf ||
+                !appearance.Find("按钮样式/折角/笺纸/状态").gameObject.activeSelf)
+                throw new System.InvalidOperationException("Card and button choices were not saved independently");
+            Choose("人物卡框/折角");
+            Choose("按钮样式/圆角");
+            Choose("返回设置");
+            settings.Find("返回封面").GetComponent<Button>().onClick.Invoke();
+            albumButton.onClick.Invoke();
+            if(Vertices(cardRim)!=9 || Vertices(album.Find("返回封面").GetComponent<SpringSurface>())!=101)
+                throw new System.InvalidOperationException("Card and button frame geometry did not update after reversing the choices");
+            Capture(camera,folder,"album-beveled");
+            album.Find("返回封面").GetComponent<Button>().onClick.Invoke();
+        }
+        finally
+        {
+            if(priorCard==unset)PlayerPrefs.DeleteKey(cardKey);else PlayerPrefs.SetInt(cardKey,priorCard);
+            if(priorButton==unset)PlayerPrefs.DeleteKey(buttonKey);else PlayerPrefs.SetInt(buttonKey,priorButton);
+            PlayerPrefs.Save();
+        }
+        Debug.Log("Cover layout, all frame geometries and independent appearance selections passed");
     }
 
     static void CheckTitle(InkTitle title,Camera camera,string name)

@@ -6,6 +6,7 @@ public static class MovementPreference
     public const string Key="fourSeasons.world.experimentalWalk";
     public const float DefaultPaceFactor=1.28f;
     public static readonly Setting Speed=new("speed",60,150,10,100,"%");
+    public static readonly Setting Turn=new("turnRate",90,270,15,165,"°/秒");
     public static readonly Setting Clearance=new("hoverHeight",25,70,5,35," 毫米");
     public static readonly Setting Amplitude=new("hoverBob",0,15,3,9," 毫米");
 
@@ -48,7 +49,7 @@ public sealed partial class SpringPage
     RectTransform movementSettings;
     SpringSurface floatCard,walkCard;
     Text floatTitle,walkTitle,floatSelection,walkSelection;
-    TuningRow speedRow,heightRow,bobRow;
+    TuningRow speedRow,turnRow,heightRow,bobRow;
 
     sealed class TuningRow
     {
@@ -68,7 +69,7 @@ public sealed partial class SpringPage
 
     void BuildMovementSettings(RectTransform heading)
     {
-        AlbumButton(heading,"设置",.052f,.94f,.287f,.99f,OpenMovementSettings,true);
+        AlbumButton(heading,"设置",.194f,.064f,.465f,.126f,OpenMovementSettings,true);
         movementSettings=Bounds(safe,"移动设置",0,0,1,1);
         movementSettings.gameObject.AddComponent<FlowerPageEntrance>();
         Label(Bounds(movementSettings,"标题",.08f,.864f,.92f,.958f),"设置",45,Ink);
@@ -78,11 +79,13 @@ public sealed partial class SpringPage
         walkCard=MovementCard("步行","实验功能 · 测试阶段",.571f,.671f,true,
             out walkTitle,out walkSelection);
         speedRow=BuildTuningRow("移动速度",.450f,MovementPreference.Speed,false);
-        heightRow=BuildTuningRow("离地高度",.351f,MovementPreference.Clearance,true);
-        bobRow=BuildTuningRow("起伏幅度",.252f,MovementPreference.Amplitude,true);
-        Label(Bounds(movementSettings,"漂浮设置说明",.09f,.167f,.91f,.225f),
+        turnRow=BuildTuningRow("转向速度",.351f,MovementPreference.Turn,false);
+        heightRow=BuildTuningRow("离地高度",.252f,MovementPreference.Clearance,true);
+        bobRow=BuildTuningRow("起伏幅度",.153f,MovementPreference.Amplitude,true);
+        Label(Bounds(movementSettings,"漂浮设置说明",.09f,.106f,.91f,.147f),
             "高度和幅度仅在漂浮时生效",17,Ink);
-        AlbumButton(movementSettings,"返回封面",.286f,.068f,.714f,.134f,()=>ShowScanner(false));
+        AlbumButton(movementSettings,"外观样式",.085f,.033f,.48f,.099f,OpenAppearance);
+        AlbumButton(movementSettings,"返回封面",.52f,.033f,.915f,.099f,()=>ShowScanner(false));
         movementSettings.gameObject.SetActive(false);
     }
 
@@ -110,6 +113,7 @@ public sealed partial class SpringPage
             });
             var button=rt.GetComponent<Button>();
             button.targetGraphic=rt.Find("漆面").GetComponent<SpringSurface>();
+            StyleButtons(rim,(SpringSurface)button.targetGraphic);
             return button;
         }
         return new TuningRow {setting=setting,value=value,less=StepButton(false,.425f),more=StepButton(true,.815f)};
@@ -135,6 +139,7 @@ public sealed partial class SpringPage
     void OpenMovementSettings()
     {
         if(!visit.CanOpenAlbum)return;
+        appearanceSettings.gameObject.SetActive(false);
         SetAlbumGround();
         albumPaper.SetActive(true);
         coverLayer.SetActive(false);
@@ -149,6 +154,7 @@ public sealed partial class SpringPage
         StyleMovementOption(floatCard,floatTitle,floatSelection,!walk);
         StyleMovementOption(walkCard,walkTitle,walkSelection,walk);
         speedRow.Refresh(true);
+        turnRow.Refresh(true);
         heightRow.Refresh(!walk);
         bobRow.Refresh(!walk);
     }

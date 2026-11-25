@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object=UnityEngine.Object;
 
@@ -7,12 +8,19 @@ public static class HoverReview
 {
     public static void Run()
     {
-        foreach(var profile in CompanionProfile.All)Review(profile);
+        EditorSceneManager.OpenScene("Assets/Scenes/SpringVisit.unity");
+        var visit=Object.FindAnyObjectByType<SpringVisit>();
+        foreach(var profile in CompanionProfile.All)
+        {
+            var card=Array.Find(visit.characters,entry=>entry.referenceName==profile.Id);
+            Review(profile,card ? card.petal : null);
+        }
     }
 
-    static void Review(CompanionProfile profile)
+    static void Review(CompanionProfile profile,Sprite seasonSprite)
     {
         var actor=new GameObject("Hover review actor");
+        var marks=new GameObject("Anchored trail review");
         var camera=new GameObject("Hover review camera").AddComponent<Camera>();
         var floor=GameObject.CreatePrimitive(PrimitiveType.Plane);
         var ground=new Material(Shader.Find("Unlit/Color")){color=new Color(.245f,.230f,.256f)};
@@ -49,6 +57,11 @@ public static class HoverReview
             body.Sample(2,4,1);
             var aura=actor.AddComponent<HoverAura>();
             aura.Initialize(body,floor.transform);
+            marks.transform.position=floor.transform.position;
+            var effects=marks.AddComponent<CompanionPetals>();
+            effects.Initialize(body,camera,seasonSprite);
+            var trail=Array.FindAll(marks.GetComponentsInChildren<SpriteRenderer>(true),
+                particle=>particle.name=="同行拖尾粒子");
             if(body.Gait!=null || !body.PoseRoot.GetComponent<CapsuleCollider>() || !aura.Mark.sprite)
                 throw new InvalidOperationException("Hover must move the touch collider and use its own ground shadow");
 
@@ -68,7 +81,7 @@ public static class HoverReview
             proxy.AddComponent<MeshRenderer>().sharedMaterial=skin.sharedMaterial;
             skin.forceRenderingOff=true;
 
-            string folder=Path.GetFullPath("../reports/evidence/hover-rc5-"+profile.Id);
+            string folder=Path.GetFullPath("../reports/evidence/hover-rc6-"+profile.Id);
             Directory.CreateDirectory(folder);
             float min=float.MaxValue, max=0, peakLean=0, maxHeld=0;
             int frame=0;
@@ -99,6 +112,16 @@ public static class HoverReview
                 Vector3 focus=actor.transform.position+Vector3.up*.153f;
                 camera.transform.position=focus+new Vector3(.20f,.132f,.40f);
                 camera.transform.LookAt(focus);
+                effects.SampleTrail(seconds);
+                if(i==50 || i==146)
+                {
+                    if(Array.Exists(trail,p=>p.gameObject.activeSelf))
+                        throw new InvalidOperationException("Stationary trail emitted or failed to expire "+profile.Id);
+                }
+                if(i==110 && Array.FindAll(trail,p=>p.gameObject.activeSelf &&
+                    p.transform.position.y>.035f &&
+                    Vector3.ProjectOnPlane(p.transform.position-actor.transform.position,Vector3.up).magnitude>.024f).Length<2)
+                    throw new InvalidOperationException("Movement did not leave a detached trail "+profile.Id);
                 skin.BakeMesh(mesh);
                 camera.Render();
                 RenderTexture.active=target;
@@ -120,6 +143,7 @@ public static class HoverReview
             RenderTexture.ReleaseTemporary(target);
             Object.DestroyImmediate(pixels);
             Object.DestroyImmediate(mesh);
+            Object.DestroyImmediate(marks);
             Object.DestroyImmediate(actor);
             Object.DestroyImmediate(camera.gameObject);
             Object.DestroyImmediate(floor);

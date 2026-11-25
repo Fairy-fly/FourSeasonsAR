@@ -21,7 +21,7 @@ public sealed class WorldWalk : MonoBehaviour
     FootContactShade shade;
     bool useWalking;
     int hoverHeight,hoverAmplitude;
-    float paceFactor;
+    float paceFactor,turnRate;
     LineRenderer flower;
     Material markerInk;
     readonly List<ARRaycastHit> hits=new();
@@ -35,7 +35,6 @@ public sealed class WorldWalk : MonoBehaviour
     bool needsRecheck;
     float boundaryInvalidAt=-1, rescanHintUntil;
     readonly ArFrameWindow frames=new();
-    const float TurnDegreesPerSecond=115;
     public bool Active=>active;
     public string Role=>role;
     const float FootMargin=.058f;
@@ -45,6 +44,7 @@ public sealed class WorldWalk : MonoBehaviour
     {
         visit=owner;role=id;useWalking=MovementPreference.ExperimentalWalk;
         paceFactor=MovementPreference.DefaultPaceFactor*MovementPreference.Speed.Value/100f;
+        turnRate=MovementPreference.Turn.Value;
         hoverHeight=MovementPreference.Clearance.Value;
         hoverAmplitude=MovementPreference.Amplitude.Value;
         var origin=owner.images.gameObject;
@@ -361,7 +361,7 @@ public sealed class WorldWalk : MonoBehaviour
             else
             {
                 var heading=Quaternion.LookRotation(direction,surface.transform.up);
-                actor.rotation=Quaternion.RotateTowards(actor.rotation,heading,TurnDegreesPerSecond*Time.deltaTime);
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,heading,turnRate*Time.deltaTime);
                 faceVisitor=Quaternion.Angle(actor.rotation,heading)>.2f;
             }
         }
@@ -371,7 +371,7 @@ public sealed class WorldWalk : MonoBehaviour
             float remaining=Vector2.Distance(from,goal);
             var direction=Vector3.ProjectOnPlane(World(goal)-actor.position,surface.transform.up);
             if(direction.sqrMagnitude>.000001f)
-                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),TurnDegreesPerSecond*Time.deltaTime);
+                actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),turnRate*Time.deltaTime);
             float alignment=Vector3.Dot(actor.forward,direction.normalized);
             float topSpeed=body.Height*body.Profile.Pace*scale*paceFactor;
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);

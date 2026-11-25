@@ -14,6 +14,7 @@ public sealed class CompanionPetals : MonoBehaviour
     Sprite floorInk,airInk,generated;
     Texture2D generatedTexture;
     SpriteRenderer lantern;
+    CompanionTrail trail;
     float respondAt=-10;
     Vector3 trailSource;
     bool trailStarted;
@@ -28,6 +29,7 @@ public sealed class CompanionPetals : MonoBehaviour
             generated=CreateLight(style);
         airInk=generated ? generated : seasonSprite;
         floorInk=seasonSprite ? seasonSprite : generated;
+        if(airInk)trail=new CompanionTrail(transform,camera,airInk,style);
         if(figure.Gait!=null)figure.Gait.Landed+=Stamp;
 
         for(int i=0;i<ink.Length;i++)
@@ -110,8 +112,10 @@ public sealed class CompanionPetals : MonoBehaviour
             if(lantern)lantern.enabled=false;
             respondAt=-10;
             trailStarted=false;
+            trail?.Clear();
             return;
         }
+        SampleTrail(Time.time);
         if(figure.Gait==null)UpdateTrail();
         Kind style=figure.Profile.Style;
         float physicalScale=figure.transform.lossyScale.y;
@@ -159,6 +163,8 @@ public sealed class CompanionPetals : MonoBehaviour
         }
     }
 
+    public void SampleTrail(float time)=>trail?.Sample(figure,time);
+
     static Vector3 AirPath(Kind style,float t,int i)
     {
         float angle=i*2.39996f;
@@ -198,7 +204,15 @@ public sealed class CompanionPetals : MonoBehaviour
     {
         if(figure && figure.Gait!=null)figure.Gait.Landed-=Stamp;
 
-        if(generated)Destroy(generated);
-        if(generatedTexture)Destroy(generatedTexture);
+        if(Application.isPlaying)
+        {
+            if(generated)Destroy(generated);
+            if(generatedTexture)Destroy(generatedTexture);
+        }
+        else
+        {
+            if(generated)DestroyImmediate(generated);
+            if(generatedTexture)DestroyImmediate(generatedTexture);
+        }
     }
 }
