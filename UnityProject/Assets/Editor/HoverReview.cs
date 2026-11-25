@@ -26,8 +26,27 @@ public static class HoverReview
             actor.transform.position=new Vector3(80,0,0);
             floor.transform.position=actor.transform.position;
             var body=actor.AddComponent<FlowerCompanion>();
-            body.Initialize(profile.Id,.26f);
-            body.EnableHover();
+            body.Initialize(profile.Id,FlowerCompanion.WorldHeight);
+            body.EnableHover(MovementPreference.Clearance.Max,MovementPreference.Amplitude.Min);
+            body.Sample(2,4,0);
+            if(Mathf.Abs(body.HoverHeight-.070f)>.0003f)
+                throw new InvalidOperationException("Zero amplitude did not preserve the chosen hover height");
+            body.EnableHover(MovementPreference.Clearance.Min,MovementPreference.Amplitude.Max);
+            for(int i=20;i<120;i++)
+            {
+                body.Sample(i/30f,4,0);
+                if(body.HoverHeight<.009f || body.HoverHeight>.041f)
+                    throw new InvalidOperationException("Lowest height and highest amplitude exceeded the floor limits");
+            }
+            body.EnableHover(MovementPreference.Clearance.Default,MovementPreference.Amplitude.Default);
+            body.Sample(2,4,1);
+            float original=body.HoverHeight;
+            body.Held=true;
+            body.Sample(2,4,1);
+            if(body.HoverHeight-original<.020f)
+                throw new InvalidOperationException("Drag did not lift the companion above its current hover pose");
+            body.Held=false;
+            body.Sample(2,4,1);
             var aura=actor.AddComponent<HoverAura>();
             aura.Initialize(body,floor.transform);
             if(body.Gait!=null || !body.PoseRoot.GetComponent<CapsuleCollider>() || !aura.Mark.sprite)
@@ -49,7 +68,7 @@ public static class HoverReview
             proxy.AddComponent<MeshRenderer>().sharedMaterial=skin.sharedMaterial;
             skin.forceRenderingOff=true;
 
-            string folder=Path.GetFullPath("../reports/evidence/hover-rc4-"+profile.Id);
+            string folder=Path.GetFullPath("../reports/evidence/hover-rc5-"+profile.Id);
             Directory.CreateDirectory(folder);
             float min=float.MaxValue, max=0, peakLean=0, maxHeld=0;
             int frame=0;
@@ -59,7 +78,8 @@ public static class HoverReview
                 float seconds=i*dt;
                 body.Glide=i>=70 && i<116 ? Mathf.Sin((i-70)/46f*Mathf.PI) : 0;
                 body.Held=i>=132 && i<155;
-                actor.transform.position+=body.Glide*dt*.13f*actor.transform.forward;
+                actor.transform.position+=body.Glide*dt*body.Height*profile.Pace*
+                    MovementPreference.DefaultPaceFactor*actor.transform.forward;
                 actor.transform.rotation=Quaternion.Euler(0,Mathf.SmoothStep(0,-65,Mathf.InverseLerp(73,110,i)),0);
                 body.Sample(seconds,i>=116 && i<132?(i-116)*dt:4,dt);
                 aura.Sample(seconds);
@@ -89,8 +109,8 @@ public static class HoverReview
 
             float settled=Vector3.Angle(body.PoseRoot.up,actor.transform.up);
             Debug.Log($"Hover {profile.Id}: idle {min*100:F1}–{max*100:F1} cm, peak lean {peakLean:F1}°, drag {maxHeld*100:F1} cm, settled {settled:F1}°");
-            if(min<.022f || max>.045f || max-min<.004f || peakLean<2.8f || settled>2.4f ||
-                maxHeld<max+.009f || maxHeld>.074f)
+            if(min<.025f || max>.045f || max-min<.015f || peakLean<3.5f || settled>2.8f ||
+                maxHeld>.077f)
                 throw new InvalidOperationException("Hover motion limit failed for "+profile.Id);
         }
         finally

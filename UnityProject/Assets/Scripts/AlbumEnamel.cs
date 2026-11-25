@@ -1,21 +1,14 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 public sealed partial class SpringPage
 {
     AlbumScenery albumGround;
-    Image albumWash;
     SpringSurface storyPlaque, switchFace;
     GameObject seasonFrame;
+    static readonly Color32 PearlPaper=new(249,238,219,255);
+    static readonly Color32 StarPaper=new(238,229,245,255);
 
-    static Texture2D EnamelTexture(string asset) => Resources.Load<Texture2D>("Enamel/" + asset);
-
-    void SetAlbumGround(string asset)
-    {
-        albumGround.Select(EnamelTexture(asset),new Rect(0,0,1,1));
-        albumWash.color = asset == "NightGarden" ? new Color32(82,74,102,109) :
-            asset == "DayGarden" ? new Color32(251,241,225,122) : new Color32(255,249,237,187);
-    }
+    void SetAlbumGround() => albumGround.SelectPaper(new Color32(255,250,240,255));
 
     void DressDetail(string id)
     {
@@ -23,8 +16,10 @@ public sealed partial class SpringPage
         bool night = id == AlbumModelViewer.StarDreamer;
         bool hidden = pearl || night;
         seasonFrame.SetActive(!hidden);
-        SetAlbumGround(pearl ? "DayGarden" : night ? "NightGarden" : "Silk");
-        detailName.color = night ? Parchment : Ink;
+        albumGround.SelectPaper(hidden
+            ? Color.Lerp(Parchment,pearl ? PearlPaper : StarPaper,.70f)
+            : Color.Lerp(Parchment,detailScenery.color,.34f));
+        detailName.color = night ? new Color32(76,53,98,255) : Ink;
         if (night) storyPlaque.SetGradient(new Color32(244,240,248,255),new Color32(218,212,231,255));
         else storyPlaque.SetGradient(new Color32(255,252,241,255),new Color32(244,229,210,255));
         detailStory.color = night ? new Color32(66,51,81,255) : Ink;

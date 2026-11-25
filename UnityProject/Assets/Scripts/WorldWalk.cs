@@ -20,6 +20,8 @@ public sealed class WorldWalk : MonoBehaviour
     HoverAura aura;
     FootContactShade shade;
     bool useWalking;
+    int hoverHeight,hoverAmplitude;
+    float paceFactor;
     LineRenderer flower;
     Material markerInk;
     readonly List<ARRaycastHit> hits=new();
@@ -42,6 +44,9 @@ public sealed class WorldWalk : MonoBehaviour
     public void Open(SpringVisit owner,string id)
     {
         visit=owner;role=id;useWalking=MovementPreference.ExperimentalWalk;
+        paceFactor=MovementPreference.DefaultPaceFactor*MovementPreference.Speed.Value/100f;
+        hoverHeight=MovementPreference.Clearance.Value;
+        hoverAmplitude=MovementPreference.Amplitude.Value;
         var origin=owner.images.gameObject;
         planes=GetOrAdd<ARPlaneManager>(origin);
         planes.requestedDetectionMode=PlaneDetectionMode.Horizontal;
@@ -238,7 +243,7 @@ public sealed class WorldWalk : MonoBehaviour
         actor.SetPositionAndRotation(position,heading);
         actor.localScale=Vector3.one*scale;
         body=actor.gameObject.AddComponent<FlowerCompanion>();
-        body.Initialize(role,.26f);
+        body.Initialize(role,FlowerCompanion.WorldHeight);
         if(useWalking)
         {
             body.EnableGroundGait();
@@ -247,7 +252,7 @@ public sealed class WorldWalk : MonoBehaviour
         }
         else
         {
-            body.EnableHover();
+            body.EnableHover(hoverHeight,hoverAmplitude);
             aura=actor.gameObject.AddComponent<HoverAura>();
             aura.Initialize(body,surface.transform);
         }
@@ -368,7 +373,7 @@ public sealed class WorldWalk : MonoBehaviour
             if(direction.sqrMagnitude>.000001f)
                 actor.rotation=Quaternion.RotateTowards(actor.rotation,Quaternion.LookRotation(direction,surface.transform.up),TurnDegreesPerSecond*Time.deltaTime);
             float alignment=Vector3.Dot(actor.forward,direction.normalized);
-            float topSpeed=body.Height*body.Profile.Pace*scale;
+            float topSpeed=body.Height*body.Profile.Pace*scale*paceFactor;
             float braking=Mathf.Sqrt(2*topSpeed*2.8f*remaining);
             walkSpeed=Mathf.MoveTowards(walkSpeed,Mathf.Min(topSpeed,braking)*Mathf.InverseLerp(.25f,.94f,alignment),topSpeed*3*Time.deltaTime);
             var next=Vector2.MoveTowards(from,goal,Time.deltaTime*walkSpeed);

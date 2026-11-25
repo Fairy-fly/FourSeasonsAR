@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-alpha.1-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.5-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -81,12 +81,24 @@ public static class SpringPageReview
         var key=MovementPreference.Key;
         bool stored=PlayerPrefs.HasKey(key);
         int original=PlayerPrefs.GetInt(key);
+        var options=new[] {MovementPreference.Speed,MovementPreference.Clearance,MovementPreference.Amplitude};
+        var titles=new[] {"移动速度","离地高度","起伏幅度"};
+        var saved=System.Array.ConvertAll(options,x=>PlayerPrefs.GetInt(x.Key,int.MinValue));
         var settings=safe.Find("移动设置");
         var hover=settings.Find("漂浮");
         var walk=settings.Find("步行");
+        var speedUp=settings.Find("移动速度/增加").GetComponent<Button>();
+        var heightUp=settings.Find("离地高度/增加").GetComponent<Button>();
+        var bobUp=settings.Find("起伏幅度/增加").GetComponent<Button>();
         try
         {
             PlayerPrefs.DeleteKey(key);
+            foreach(var option in options)PlayerPrefs.DeleteKey(option.Key);
+            var albumEntry=(RectTransform)safe.Find("封面/四季花册/漆面");
+            var settingsEntry=(RectTransform)safe.Find("封面/设置/漆面");
+            if(albumEntry.offsetMin!=settingsEntry.offsetMin ||
+                albumEntry.GetComponent<SpringSurface>().color!=settingsEntry.GetComponent<SpringSurface>().color)
+                throw new System.InvalidOperationException("Cover buttons must share the same finish and border");
             safe.Find("封面/设置").GetComponent<Button>().onClick.Invoke();
             if(!settings.gameObject.activeSelf || MovementPreference.ExperimentalWalk ||
                 !hover.Find("笺纸/状态").gameObject.activeSelf ||
@@ -99,11 +111,33 @@ public static class SpringPageReview
             settings.GetComponent<FlowerPageEntrance>().SetProgress(1);
             Capture(camera,folder,"movement-settings-hover");
 
+            for(int i=0;i<options.Length;i++)
+            {
+                var option=options[i];
+                var row=settings.Find(titles[i]);
+                var increase=row.Find("增加").GetComponent<Button>();
+                var decrease=row.Find("减少").GetComponent<Button>();
+                var text=row.Find("数值").GetComponent<Text>();
+                if(text.text!=option.Default+option.Unit)
+                    throw new System.InvalidOperationException("Unexpected default adjustment "+row.name);
+                for(int presses=0;presses<20;presses++)increase.onClick.Invoke();
+                if(option.Value!=option.Max || increase.interactable || text.text!=option.Max+option.Unit)
+                    throw new System.InvalidOperationException("Upper tuning limit failed "+row.name);
+                for(int presses=0;presses<20;presses++)decrease.onClick.Invoke();
+                if(option.Value!=option.Min || decrease.interactable || text.text!=option.Min+option.Unit)
+                    throw new System.InvalidOperationException("Lower tuning limit failed "+row.name);
+                increase.onClick.Invoke();
+            }
             walk.GetComponent<Button>().onClick.Invoke();
             settings.Find("返回封面").GetComponent<Button>().onClick.Invoke();
             safe.Find("封面/设置").GetComponent<Button>().onClick.Invoke();
-            if(!MovementPreference.ExperimentalWalk || !walk.Find("笺纸/状态").gameObject.activeSelf)
+            if(!MovementPreference.ExperimentalWalk || !walk.Find("笺纸/状态").gameObject.activeSelf ||
+                !speedUp.interactable || heightUp.interactable || bobUp.interactable)
                 throw new System.InvalidOperationException("Experimental gait selection did not persist");
+            heightUp.onClick.Invoke();
+            for(int i=0;i<options.Length;i++)
+                if(options[i].Value!=options[i].Min+options[i].Step)
+                    throw new System.InvalidOperationException("Settings were not restored on reopen or walk changed a hover setting");
             settings.GetComponent<FlowerPageEntrance>().SetProgress(1);
             Capture(camera,folder,"movement-settings-walk");
             hover.GetComponent<Button>().onClick.Invoke();
@@ -114,9 +148,12 @@ public static class SpringPageReview
         {
             if(stored)PlayerPrefs.SetInt(key,original);
             else PlayerPrefs.DeleteKey(key);
+            for(int i=0;i<options.Length;i++)
+                if(saved[i]==int.MinValue)PlayerPrefs.DeleteKey(options[i].Key);
+                else PlayerPrefs.SetInt(options[i].Key,saved[i]);
             PlayerPrefs.Save();
         }
-        Debug.Log("Movement settings default, experimental label, persistence and glyphs passed");
+        Debug.Log("Movement settings defaults, bounds, mode availability, persistence, button styling and glyphs passed");
     }
 
     static void CheckTitle(InkTitle title,Camera camera,string name)
@@ -283,9 +320,10 @@ public static class SpringPageReview
                 card.onClick.Invoke();
                 Canvas.ForceUpdateCanvases();
                 var scenery=detail.GetComponentInChildren<AlbumScenery>();
-                Check(scenery.texture && scenery.uvRect.width > 0 &&
-                    (scenery.uvRect.center.x >= .5f) == ((int)character.season % 2 == 1) &&
-                    (scenery.uvRect.center.y >= .5f) == ((int)character.season < 2),"角色场景绑定错误");
+                var cardPaper=card.transform.Find("笺纸/季景").GetComponent<AlbumScenery>();
+                Check(scenery.texture && scenery.uvRect.width>0 && scenery.texture==cardPaper.texture &&
+                    scenery.color==cardPaper.color && scenery.texture==paper.GetComponent<AlbumScenery>().texture,
+                    "角色卡片与详情底纸不匹配");
                 Check(detail.gameObject.activeInHierarchy && !grid.gameObject.activeSelf &&
                     detail.Find("题名").GetComponent<Text>().text == character.characterName &&
                     detail.Find("立绘").GetComponent<Image>().sprite == character.portrait.sprite &&

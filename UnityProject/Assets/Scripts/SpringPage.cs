@@ -44,9 +44,7 @@ public sealed partial class SpringPage : MonoBehaviour
         coverImage.raycastTarget = false;
         albumPaper = Bounds(frame,"花册底纸",0,0,1,1).gameObject;
         albumGround = albumPaper.AddComponent<AlbumScenery>();
-        albumWash = Bounds(albumGround.rectTransform,"场景罩染",0,0,1,1).gameObject.AddComponent<Image>();
-        albumWash.raycastTarget = false;
-        SetAlbumGround("Silk");
+        SetAlbumGround();
         safe = Bounds(frame,"安全区域",0,0,1,1);
         var heading = Bounds(safe,"封面",0,0,1,1);
         home = heading.gameObject;
@@ -63,7 +61,7 @@ public sealed partial class SpringPage : MonoBehaviour
         Blossom(Box(start,"樱印",.855f,.5f,25,25));
         MakeButton(start,startSurface,visit.Begin);
         homeStatus = Label(Bounds(heading,"启动提示",.05f,.002f,.95f,.075f),"",17,Ink);
-        AlbumButton(heading,"四季花册",.70f,.94f,.95f,.99f,OpenAlbum);
+        AlbumButton(heading,"四季花册",.713f,.94f,.948f,.99f,OpenAlbum,true);
 
         var scan = Bounds(safe,"扫描",0,0,1,1);
         scanner = scan.gameObject;

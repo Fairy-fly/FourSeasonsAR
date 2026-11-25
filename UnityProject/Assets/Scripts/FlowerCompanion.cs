@@ -13,13 +13,18 @@ public sealed class FlowerCompanion : MonoBehaviour
     float compression;
     bool hovering;
     float hoverDrive, hoverHold;
+    float restingGap, bobAmplitude;
+    public const float WorldHeight=.26f;
     public float Glide { get; set; }
     public bool Held { get; set; }
     public float HoverHeight => poseRoot.localPosition.y;
     public Transform PoseRoot => poseRoot;
 
-    public void EnableHover()
+    public void EnableHover(int heightMillimeters,int amplitudeMillimeters)
     {
+        float scaleToModel=Height/WorldHeight;
+        restingGap=.001f*heightMillimeters*scaleToModel;
+        bobAmplitude=.001f*amplitudeMillimeters*scaleToModel;
         hovering=true;
         SampleHover(0,0);
     }
@@ -162,11 +167,12 @@ public sealed class FlowerCompanion : MonoBehaviour
         float swell=Mathf.Sin(rhythm);
         float sway=Mathf.Sin(rhythm*.78f+.62f);
         float rise=Mathf.SmoothStep(0,1,Mathf.Clamp01(seconds/.62f));
-        float hover=Height*(.077f+rise*(.053f+.022f*swell)+.017f*hoverDrive+.10f*hoverHold);
-        Quaternion lean=Quaternion.Euler(.8f*sway+4.4f*hoverDrive,0,1.55f*sway);
+        float hover=Mathf.Lerp(restingGap*.58f,restingGap+bobAmplitude*swell,rise)
+            +Height*(.019f*hoverDrive+.10f*hoverHold);
+        Quaternion lean=Quaternion.Euler(.95f*sway+5.15f*hoverDrive,0,1.85f*sway);
         Vector3 center=Vector3.up*(Height*.43f);
         poseRoot.SetLocalPositionAndRotation(Vector3.up*hover+center-lean*center,lean);
-        return .42f*sway+.24f*hoverDrive;
+        return .50f*sway+.27f*hoverDrive;
     }
 
     void PoseSpring(float t,float greeting,float reach,float entrance,float step)
