@@ -23,3 +23,5 @@ APK 在 builds 下，编辑器验证日志与截图在 reports 下。已导入�
 ## 授权
 
 自有代码使用 [MIT](LICENSE)。项目有权授权的原创角色原画、识别卡、美术与角色模型采用 [CC BY 4.0](LICENSE-Art.txt)，允许署名后改编与商用。署名可写作「《四时花旅》」，附仓库和许可证链接，并注明改动。第三方字体按 [各自的许可证](UnityProject/Assets/StreamingAssets/FontLicenses) 使用。Unity、AR Foundation、ARCore 和其他第三方组件遵循各自条款。
+
+封面「四时花旅」和花册「四季花册」的标题使用站酷小薇体 Regular。项目以透明字形贴图为粒子聚字提供轮廓。[站酷小薇体](https://fonts.google.com/specimen/ZCOOL+XiaoWei) · [字体许可证](UnityProject/Assets/StreamingAssets/FontLicenses/Title-XiaoWei-OFL.txt)

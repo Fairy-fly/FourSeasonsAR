@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.6-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.7-editor");
         Directory.CreateDirectory(folder);
         try
         {
