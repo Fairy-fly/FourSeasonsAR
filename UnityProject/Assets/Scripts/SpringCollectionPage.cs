@@ -10,6 +10,7 @@ public sealed partial class SpringPage
     Image detailPortrait;
     AlbumScenery detailScenery;
     AlbumAtmosphere detailAir;
+    AlbumEngraving detailEngraving,hiddenEngraving;
     AlbumModelViewer modelViewer;
     GameObject modelBackdrop;
     RectTransform detailBack, modelSwitch;
@@ -61,6 +62,7 @@ public sealed partial class SpringPage
             StyleCards(edge,face);
             var stage = Bounds(paper,"季景",.014f,.207f,.986f,.988f);
             SetSeasonScene(stage.gameObject.AddComponent<AlbumScenery>(),character.season);
+            Engraving(stage,(AlbumAtmosphere.Motif)character.season);
             var portrait = Portrait(Bounds(stage,"立绘",.055f,.014f,.945f,.99f));
             portrait.sprite = character.portrait.sprite;
             Air(stage,(AlbumAtmosphere.Motif)character.season);
@@ -88,6 +90,9 @@ public sealed partial class SpringPage
         var sceneFace=Surface(interior,Parchment,true);
         StyleCards(sceneBorder,sceneFace);
         detailScenery=Bounds(interior,"底纸",0,0,1,1).gameObject.AddComponent<AlbumScenery>();
+        detailEngraving=Engraving(interior,AlbumAtmosphere.Motif.Petal);
+        var hiddenArt=Bounds(leaf,"藏品纹样",.075f,.253f,.925f,.809f);
+        hiddenEngraving=Engraving(hiddenArt,AlbumAtmosphere.Motif.Pearl);
         detailPortrait = Portrait(Bounds(leaf,"立绘",.09f,.245f,.91f,.801f));
         encounterTouch=detailPortrait.gameObject.AddComponent<FlowerButton>();
         encounterTouch.targetGraphic=detailPortrait;
@@ -136,6 +141,13 @@ public sealed partial class SpringPage
         return air;
     }
 
+    static AlbumEngraving Engraving(RectTransform stage,AlbumAtmosphere.Motif motif)
+    {
+        var ornament=Bounds(stage,"纸上纹样",0,0,1,1).gameObject.AddComponent<AlbumEngraving>();
+        ornament.Select(motif);
+        return ornament;
+    }
+
     void HiddenSeat(RectTransform parent,string title,float x,bool pearl)
     {
         var seat=Bounds(parent,title,x,.111f,x+.43f,.245f);
@@ -143,6 +155,7 @@ public sealed partial class SpringPage
         var art=Inset(seat,"藏品",2.3f);
         StyleCards(edge,Surface(art,Parchment,true));
         Bounds(art,"底纸",0,0,1,1).gameObject.AddComponent<AlbumScenery>().SelectPaper(pearl ? PearlPaper : StarPaper);
+        Engraving(art,pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
         string id=pearl ? AlbumModelViewer.TimeKeeper : AlbumModelViewer.StarDreamer;
         Portrait(Bounds(art,"藏品立绘",.46f,.05f,.96f,.97f)).sprite=Resources.Load<Sprite>("Gallery/"+id+"/Portrait");
         Air(art,pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
@@ -158,6 +171,7 @@ public sealed partial class SpringPage
         bool pearl=id==AlbumModelViewer.TimeKeeper;
         var portrait=Resources.Load<Sprite>("Gallery/"+id+"/Portrait");
         detailAir.Select(pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
+        hiddenEngraving.Select(pearl ? AlbumAtmosphere.Motif.Pearl : AlbumAtmosphere.Motif.Star);
         ShowDetail(id,CompanionProfile.Find(id).Name,portrait,HiddenNote(id),brushFont);
     }
 
@@ -233,6 +247,7 @@ public sealed partial class SpringPage
     {
         if (!visit.Album.Contains(character.referenceName)) return;
         SetSeasonScene(detailScenery,character.season);
+        detailEngraving.Select((AlbumAtmosphere.Motif)character.season);
         detailAir.Select((AlbumAtmosphere.Motif)character.season);
         ShowDetail(character.referenceName,character.characterName,character.portrait.sprite,character.excerpt,brushFont);
     }
@@ -253,6 +268,7 @@ public sealed partial class SpringPage
         modelSwitch.anchorMin=new Vector2(.522f,.028f);
         modelSwitch.anchorMax=new Vector2(.948f,.101f);
         bool hidden = id==AlbumModelViewer.TimeKeeper || id==AlbumModelViewer.StarDreamer;
+        hiddenEngraving.gameObject.SetActive(hidden);
         encounterTouch.interactable = hidden && AllSeasonsCollected() && !visit.Album.Contains(id);
         detailPortrait.raycastTarget=encounterTouch.interactable;
         ArrangeActions(id);

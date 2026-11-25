@@ -9,13 +9,15 @@ public sealed class CompanionPetals : MonoBehaviour
     readonly Vector3[] origin=new Vector3[18];
     readonly float[] birth=new float[18];
     readonly bool[] airborne=new bool[18];
+    readonly bool[] alternate=new bool[18];
+    readonly Quaternion[] heading=new Quaternion[18];
     FlowerCompanion figure;
     Camera lens;
     Sprite floorInk,airInk,generated;
     Texture2D generatedTexture;
     SpriteRenderer lantern;
     CompanionTrail trail;
-    float respondAt=-10;
+    int releasedReaction;
     Vector3 trailSource;
     bool trailStarted;
     int cursor;
@@ -70,9 +72,7 @@ public sealed class CompanionPetals : MonoBehaviour
         return Sprite.Create(generatedTexture,new Rect(0,0,size,size),new Vector2(.5f,.5f),size);
     }
 
-    public void Respond(){if(Time.time-respondAt>1.45f)respondAt=Time.time;}
-
-    void Emit(Vector3 point,bool air)
+    void Emit(Vector3 point,bool air,float now,bool alternateAction=false)
     {
         var sprite=air ? airInk : floorInk;
         if(!sprite)return;
@@ -80,13 +80,15 @@ public sealed class CompanionPetals : MonoBehaviour
         var r=ink[i];
         r.sprite=sprite;
         airborne[i]=air;
-        birth[i]=Time.time;
+        alternate[i]=alternateAction;
+        if(alternateAction)heading[i]=Quaternion.Inverse(transform.rotation)*figure.transform.rotation;
+        birth[i]=now;
         origin[i]=transform.InverseTransformPoint(point);
         r.gameObject.SetActive(true);
         if(!air)r.transform.rotation=Quaternion.AngleAxis(23*i,figure.transform.up)*Quaternion.LookRotation(figure.transform.up,figure.transform.forward);
     }
 
-    void Stamp(Vector3 sole)=>Emit(sole+figure.transform.up*.001f,false);
+    void Stamp(Vector3 sole)=>Emit(sole+figure.transform.up*.001f,false,Time.time);
 
     void UpdateTrail()
     {
@@ -101,7 +103,7 @@ public sealed class CompanionPetals : MonoBehaviour
         float distance=.044f*figure.transform.lossyScale.y;
         if((point-trailSource).sqrMagnitude<distance*distance)return;
         trailSource=point;
-        Emit(point+figure.transform.up*.002f,false);
+        Emit(point+figure.transform.up*.002f,false,Time.time);
     }
 
     void LateUpdate()
@@ -110,30 +112,38 @@ public sealed class CompanionPetals : MonoBehaviour
         {
             foreach(var r in ink)if(r)r.gameObject.SetActive(false);
             if(lantern)lantern.enabled=false;
-            respondAt=-10;
+            if(figure)releasedReaction=figure.ReactionCount;
             trailStarted=false;
             trail?.Clear();
             return;
         }
         SampleTrail(Time.time);
         if(figure.Gait==null)UpdateTrail();
+        SampleActionEffect(Time.time,figure.ReactionAge);
+    }
+
+    public void SampleActionEffect(float now,float age)
+    {
         Kind style=figure.Profile.Style;
         float physicalScale=figure.transform.lossyScale.y;
-        float delay=Time.time-respondAt;
+        bool pending=figure.ReactionCount!=releasedReaction;
         if(lantern)
         {
             lantern.enabled=true;
             lantern.transform.SetPositionAndRotation(figure.EffectPoint,lens.transform.rotation);
-            lantern.transform.localScale=Vector3.one*physicalScale*(delay<1.4f?.111f:.083f);
-            lantern.color=new Color(1,.92f,.44f,.42f+.14f*Mathf.Sin(Time.time*5));
+            lantern.transform.localScale=Vector3.one*physicalScale*(pending?.111f:.083f);
+            lantern.color=new Color(1,.92f,.44f,.42f+.14f*Mathf.Sin(now*5));
         }
-        if(delay>=figure.Profile.Release && delay<1.4f)
+        if(pending && age>=figure.ReactionRelease)
         {
-            Vector3 source=figure.EffectPoint;
-            if(style==Kind.Autumn)source+=figure.transform.right*(figure.Height*.04f*physicalScale);
-            int count=style is Kind.Star or Kind.Time ? 11 : 8;
-            for(int j=0;j<count;j++)Emit(source,true);
-            respondAt=-10;
+            releasedReaction=figure.ReactionCount;
+            if(age<figure.ReactionDuration)
+            {
+                Vector3 source=figure.ReactionPoint;
+                if(style==Kind.Autumn)source+=figure.transform.right*(figure.Height*.04f*physicalScale);
+                int count=figure.AlternateReaction ? 13 : style is Kind.Star or Kind.Time ? 11 : 8;
+                for(int j=0;j<count;j++)Emit(source,true,now,figure.AlternateReaction);
+            }
         }
 
         Color motif=style switch
@@ -149,10 +159,13 @@ public sealed class CompanionPetals : MonoBehaviour
             var r=ink[i];
             if(!r.gameObject.activeSelf)continue;
             bool air=airborne[i];
-            float t=(Time.time-birth[i])/(air?1.08f:1.65f);
+            bool alternateAction=alternate[i];
+            float lifetime=air ? (alternateAction?1.16f:1.08f) : 1.65f;
+            float t=(now-birth[i])/lifetime;
             if(t>=1){r.gameObject.SetActive(false);continue;}
-            Vector3 offset=air?AirPath(style,t,i):Vector3.zero;
+            Vector3 offset=air ? (alternateAction?heading[i]*FlowerCompanion.AlternateParticlePath(style,t,i):AirPath(style,t,i)) : Vector3.zero;
             float diameter=air?.016f:.030f;
+            if(alternateAction)diameter*=Mathf.Lerp(.81f,1.18f,Mathf.Sin(Mathf.PI*t));
             if(style==Kind.Summer && !air)diameter*=.4f+t*2.0f;
             r.transform.localPosition=origin[i]+physicalScale*offset;
             r.transform.localScale=Vector3.one*(physicalScale*diameter/Mathf.Max(.001f,r.sprite.bounds.size.x));

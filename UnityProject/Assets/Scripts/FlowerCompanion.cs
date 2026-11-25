@@ -2,13 +2,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // Shared by the card encounter and the real-world placement rig. Movement is expressed in metres.
-public sealed class FlowerCompanion : MonoBehaviour
+public sealed partial class FlowerCompanion : MonoBehaviour
 {
     readonly Dictionary<string,Transform> joints = new();
     readonly Dictionary<string,Quaternion> rest = new();
     Transform visual, poseRoot;
     Material material;
-    float age, response = -10;
+    float age;
     Vector3 visualRest;
     float compression;
     bool hovering;
@@ -93,11 +93,6 @@ public sealed class FlowerCompanion : MonoBehaviour
         _ => Palm
     };
 
-    public void Respond()
-    {
-        if(Time.time-response>1.45f) response=Time.time;
-    }
-
     void Pose(string name,Vector3 localAxis,float degrees)
     {
         if(!joints.TryGetValue(name,out var joint)) return;
@@ -108,14 +103,18 @@ public sealed class FlowerCompanion : MonoBehaviour
     void LateUpdate()
     {
         if(!visual) return;
-        Sample(Time.time-age,Time.time-response,Time.deltaTime);
+        Sample(Time.time-age,ReactionAge,Time.deltaTime,AlternateReaction);
     }
 
-    public void Sample(float t,float reactionAge,float dt)
+    public void Sample(float t,float reactionAge,float dt,bool alternate=false)
     {
-        float reach=Mathf.SmoothStep(0,1,Mathf.Clamp01((reactionAge-.12f)/.33f))*
-                    (1-Mathf.SmoothStep(0,1,Mathf.Clamp01((reactionAge-.82f)/.58f)));
-        float greeting=Mathf.Sin(Mathf.Clamp01(reactionAge/1.45f)*Mathf.PI);
+        alternate=alternate && reactionAge>=0 && reactionAge<AlternateDuration;
+        ResetActionPose(alternate);
+        float signatureAge=alternate?SignatureDuration:reactionAge;
+        float reach=Mathf.SmoothStep(0,1,Mathf.Clamp01((signatureAge-.12f)/.33f))*
+                    (1-Mathf.SmoothStep(0,1,Mathf.Clamp01((signatureAge-.82f)/.58f)));
+        float greeting=signatureAge>=SignatureDuration ? 0 :
+            Mathf.Sin(Mathf.Clamp01(signatureAge/SignatureDuration)*Mathf.PI);
         float entrance=1-Mathf.SmoothStep(0,1,Mathf.Clamp01(t/.6f));
         float step=0;
         if(hovering)step=SampleHover(t,dt);
@@ -131,12 +130,13 @@ public sealed class FlowerCompanion : MonoBehaviour
         switch(Profile.Style)
         {
             case CompanionProfile.Kind.Spring: PoseSpring(t,greeting,reach,entrance,step); break;
-            case CompanionProfile.Kind.Autumn: PoseAutumn(t,reactionAge,greeting,reach,entrance,step); break;
+            case CompanionProfile.Kind.Autumn: PoseAutumn(t,signatureAge,greeting,reach,entrance,step); break;
             case CompanionProfile.Kind.Summer: CarryLantern(t,greeting,reach,step); break;
             case CompanionProfile.Kind.Winter: CupSnow(t,greeting,reach,step); break;
-            case CompanionProfile.Kind.Time: BowAndPause(t,reactionAge,greeting,reach,step); break;
-            case CompanionProfile.Kind.Star: TraceStar(t,reactionAge,greeting,reach,step); break;
+            case CompanionProfile.Kind.Time: BowAndPause(t,signatureAge,greeting,reach,step); break;
+            case CompanionProfile.Kind.Star: TraceStar(t,signatureAge,greeting,reach,step); break;
         }
+        if(alternate)PoseAlternate(reactionAge);
         if(hovering)
         {
             // A small paired settling motion, without alternating steps.

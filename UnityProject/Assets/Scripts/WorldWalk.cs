@@ -433,13 +433,13 @@ public sealed class WorldWalk : MonoBehaviour
                 lastDrag=FloorBoundary.ReachableEnd(surface.boundary,lastDrag,Local(hit.position)+grabOffset,Clearance);
                 actor.position=World(lastDrag)+(useWalking?surface.transform.up*.045f:Vector3.zero);Marker(World(lastDrag));
             }
-            if(touch.phase==UnityEngine.InputSystem.TouchPhase.Ended){CancelGesture();body.Respond();}
+            if(touch.phase==UnityEngine.InputSystem.TouchPhase.Ended){CancelGesture();body.Respond(false);}
             return;
         }
         if(touch.phase!=UnityEngine.InputSystem.TouchPhase.Ended)return;
         finger=-1;
         if(Vector2.Distance(pos,down)>Screen.width*.035f || visit.page.WorldConsumes(pos))return;
-        if(downOnActor){faceVisitor=true;body.Respond();effects.Respond();return;}
+        if(downOnActor){if(body.Respond())faceVisitor=true;return;}
         if(!valid){visit.page.WorldHint("请选择同一块地面或桌面内的位置");return;}
         faceVisitor=false;
         goal=FloorBoundary.ReachableEnd(surface.boundary,Local(actor.position),Local(hit.position),Clearance);

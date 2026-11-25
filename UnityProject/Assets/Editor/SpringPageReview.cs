@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.8-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.9-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -577,6 +577,12 @@ public static class SpringPageReview
             var mesh = surface.canvasRenderer.GetMesh();
             if (!mesh || mesh.vertexCount < 3)
                 throw new System.InvalidOperationException("界面网格为空 " + surface.name);
+        }
+        foreach(var ornament in Object.FindObjectsByType<AlbumEngraving>(FindObjectsSortMode.None))
+        {
+            var mesh=ornament.canvasRenderer.GetMesh();
+            if(!mesh || mesh.vertexCount<32)
+                throw new System.InvalidOperationException("花册纹样未绘制");
         }
         foreach (var label in Object.FindObjectsByType<Text>(FindObjectsSortMode.None))
             foreach (char glyph in label.text)

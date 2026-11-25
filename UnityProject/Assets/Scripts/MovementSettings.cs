@@ -72,7 +72,7 @@ public sealed partial class SpringPage
         AlbumButton(heading,"设置",.194f,.064f,.465f,.126f,OpenMovementSettings,true);
         movementSettings=Bounds(safe,"移动设置",0,0,1,1);
         movementSettings.gameObject.AddComponent<FlowerPageEntrance>();
-        Label(Bounds(movementSettings,"标题",.08f,.864f,.92f,.958f),"设置",45,Ink);
+        Label(Bounds(movementSettings,"标题",.08f,.864f,.92f,.958f),"设置",49,Ink);
         Label(Bounds(movementSettings,"类别",.10f,.805f,.90f,.855f),"现实同行 · 移动方式",22,Ink);
         floatCard=MovementCard("漂浮","默认 · 花灵贴着地面轻轻漂浮",.689f,.789f,false,
             out floatTitle,out floatSelection);

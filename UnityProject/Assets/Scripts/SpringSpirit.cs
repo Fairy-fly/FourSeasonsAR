@@ -50,8 +50,8 @@ public sealed class SpringSpirit : MonoBehaviour
 
     public void Blossom()
     {
+        if(companion && !companion.Respond())return;
         burst = Time.unscaledTime;
-        if(companion) companion.Respond();
     }
 
     // 只在首次 Limited 时启动倒计时，连续 Limited 事件不会延长缓冲。
@@ -70,6 +70,8 @@ public sealed class SpringSpirit : MonoBehaviour
         float age = now - appeared;
         float fade = Mathf.Clamp01(age / .35f);
         float pulse = Mathf.Max(0, 1 - (now - burst) / .8f);
+        float reactionAge=companion?companion.ReactionAge:now-burst;
+        float release=companion?companion.ReactionRelease:.26f;
         portrait.color = new Color(1, 1, 1, fade);
         float bounce = Mathf.Sin((1-pulse)*Mathf.PI*2)*pulse;
         portrait.transform.localScale = Vector3.one * (.84f + .16f * fade + .18f * bounce);
@@ -78,6 +80,18 @@ public sealed class SpringSpirit : MonoBehaviour
         for (int i = 0; i < petals.Length; i++)
         {
             float t = Mathf.Repeat(age * .22f + i * .618f, 1);
+            float flight=(reactionAge-release)/1.16f;
+            if(companion && companion.AlternateReaction && flight>=0 && flight<1)
+            {
+                Vector3 plume=FlowerCompanion.AlternateParticlePath(companion.Profile.Style,flight,i);
+                petals[i].position=companion.ReactionPoint+companion.transform.TransformVector(plume*(companion.Height/FlowerCompanion.WorldHeight));
+                petals[i].rotation=Camera.main.transform.rotation*Quaternion.Euler(0,0,i*43+flight*125);
+                petals[i].localScale=Vector3.one*(.75f+.34f*Mathf.Sin(flight*Mathf.PI+i));
+                Color tint=season==Season.Summer?new Color(1,.92f,.42f):Color.white;
+                tint.a=(1-flight)*(1-flight);
+                petals[i].GetComponent<SpriteRenderer>().color=tint;
+                continue;
+            }
             if (season == Season.Summer)
             {
                 float ring = Mathf.Repeat(age * .30f + i * .25f, 1);
@@ -85,9 +99,9 @@ public sealed class SpringSpirit : MonoBehaviour
                 petals[i].localRotation = Quaternion.Euler(90, 0, 0);
                 petals[i].localScale = Vector3.one * (ring * 6 + pulse * 2);
                 petals[i].GetComponent<SpriteRenderer>().color = new Color(1, 1, 1, Mathf.Sin(ring * Mathf.PI));
-                if(companion && now-burst>.46f && now-burst<1.27f && i<3)
+                if(companion && !companion.AlternateReaction && reactionAge>.46f && reactionAge<1.27f && i<3)
                 {
-                    float glow=Mathf.Clamp01((now-burst-.46f)*1.2346f);
+                    float glow=Mathf.Clamp01((reactionAge-.46f)*1.2346f);
                     petals[i].position=companion.EffectPoint+companion.transform.up*(.020f*i+.043f*glow);
                     petals[i].rotation=Camera.main.transform.rotation;
                     petals[i].localScale=Vector3.one*(.65f+i*.23f)*(1-glow);
@@ -98,10 +112,9 @@ public sealed class SpringSpirit : MonoBehaviour
             float a = i * 2.4f + age * .7f;
             float r = .026f + .017f * Mathf.Sin(i * 7) + .033f * pulse;
             petals[i].localPosition = new Vector3(Mathf.Cos(a) * r, .105f * (1 - t), Mathf.Sin(a) * r);
-            float release=companion ? companion.Profile.Release : .26f;
-            if(companion && now-burst>=release && now-burst<release+.79f)
+            if(companion && !companion.AlternateReaction && reactionAge>=release && reactionAge<release+.79f)
             {
-                float flight=(now-burst-release)/.79f;
+                flight=(reactionAge-release)/.79f;
                 Vector3 spread=companion.transform.right*Mathf.Cos(i*2.4f)+companion.transform.forward*Mathf.Sin(i*2.4f);
                 if(season==Season.Autumn)
                 {
@@ -110,6 +123,7 @@ public sealed class SpringSpirit : MonoBehaviour
                 }
                 petals[i].position=companion.EffectPoint+spread*(flight*.042f)+companion.transform.up*(.045f*Mathf.Sin(flight*Mathf.PI));
             }
+            petals[i].GetComponent<SpriteRenderer>().color=Color.white;
             petals[i].rotation = Camera.main.transform.rotation * Quaternion.Euler(0, 0, i * 43 + age * 65);
             petals[i].localScale = Vector3.one * Mathf.Sin(Mathf.PI * t);
         }

@@ -86,6 +86,22 @@ public static class AutumnGestureReview
             Debug.Log($"Autumn gesture: facial samples={face.Count}, max face motion relative to head={peak*1000:F4} mm, palm travel={reach*1000:F2} mm, palm release height={released.y*1000:F2} mm");
             if (peak > .0004f || reach < .008f || released.y > .145f || Mathf.Abs(released.x) < .029f)
                 throw new InvalidOperationException("Autumn gesture moved the face or placed the palm too close to it");
+
+            float alternatePeak=0;
+            for(int index=0;index<=60;index++)
+            {
+                body.Sample(2.3f,index/30f,0,true);
+                skin.BakeMesh(posed);
+                posed.GetVertices(vertices);
+                for(int i=0;i<face.Count;i++)
+                {
+                    Vector3 point=head.InverseTransformPoint(proxy.transform.TransformPoint(vertices[face[i]]));
+                    alternatePeak=Mathf.Max(alternatePeak,head.TransformVector(point-rest[i]).magnitude);
+                }
+            }
+            if(alternatePeak>.0004f)
+                throw new InvalidOperationException("Alternate autumn gesture deformed the face");
+            Debug.Log($"Alternate autumn gesture: facial motion relative to head={alternatePeak*1000:F4} mm");
         }
         finally
         {
