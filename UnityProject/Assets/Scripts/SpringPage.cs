@@ -49,7 +49,7 @@ public sealed partial class SpringPage : MonoBehaviour
         var heading = Bounds(safe,"封面",0,0,1,1);
         home = heading.gameObject;
         home.AddComponent<FlowerPageEntrance>();
-        var title=Bounds(heading,"书名",.056f,.801f,.944f,.955f).gameObject.AddComponent<InkTitle>();
+        var title=Bounds(heading,"书名",.087f,.801f,.913f,.955f).gameObject.AddComponent<InkTitle>();
         title.Configure(Resources.Load<Texture2D>("Album/title-home"),Ink,new Color32(194,120,116,255),1.45f);
         Label(Bounds(heading,"副题",.06f,.769f,.94f,.809f),"四季角色卡 · 3D AR 体验",20,Ink);
 
