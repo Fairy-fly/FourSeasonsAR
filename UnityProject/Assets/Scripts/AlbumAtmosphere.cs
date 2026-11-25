@@ -9,9 +9,13 @@ public sealed class AlbumAtmosphere : MaskableGraphic
     Motif motif;
     public AlbumAtmosphere() { useLegacyMeshGeneration = false; }
     float phase, nextFrame;
-    static readonly Color[] Tints = {
-        new Color32(255,188,206,255),new Color32(249,255,182,255),new Color32(223,106,37,255),
-        new Color32(242,253,255,255),new Color32(255,246,202,255),new Color32(241,213,255,255)
+    static readonly Color[] Inks = {
+        new Color32(185,54,106,255),new Color32(39,107,86,255),new Color32(185,67,30,255),
+        new Color32(56,99,169,255),new Color32(165,105,37,255),new Color32(111,63,167,255)
+    };
+    static readonly Color[] Highlights = {
+        new Color32(255,218,231,255),new Color32(252,255,210,255),new Color32(255,194,118,255),
+        new Color32(245,252,255,255),new Color32(255,233,169,255),new Color32(241,221,255,255)
     };
 
     public void Select(Motif value)
@@ -40,44 +44,65 @@ public sealed class AlbumAtmosphere : MaskableGraphic
         Rect r = rectTransform.rect;
         float unit = Mathf.Min(r.width,r.height);
         if (unit <= 0) return;
-        Color tint = Tints[(int)motif];
+        Color ink = Inks[(int)motif];
+        Color light = Highlights[(int)motif];
         bool hidden = motif == Motif.Pearl || motif == Motif.Star;
         bool marginLights = hidden && r.height > r.width;
         if (hidden && !marginLights)
-            Foil(mesh,r,Mathf.Repeat(phase / 8.6f + (motif == Motif.Star ? .45f : 0),1),tint);
+            Foil(mesh,r,Mathf.Repeat(phase / 8.6f + (motif == Motif.Star ? .45f : 0),1),light);
         for (int i=0;i<6;i++)
         {
             float t = Mathf.Repeat(phase*(.073f+.009f*(i%3)) + i*.618f,1);
             float wave = Mathf.Sin(Mathf.PI*t);
             float lane = Mathf.Repeat(i*.382f+.11f,1);
-            float drift = .07f*Mathf.Sin(2*Mathf.PI*t+i);
-            float x = .09f+.82f*lane + drift;
-            if (marginLights) x = (i%2 == 0 ? .04f : .80f) + .14f*lane + .18f*drift;
+            float drift = .036f*Mathf.Sin(2*Mathf.PI*t+i);
+            float x = (i%2 == 0 ? .10f : .76f) + .14f*lane + drift;
+            if (marginLights) x = (i%2 == 0 ? .06f : .80f) + .12f*lane + .50f*drift;
             float y = motif == Motif.Pond ? .18f+t*.71f : .94f-t*.88f;
             Vector2 c = new(r.xMin+r.width*x,r.yMin+r.height*y);
-            float size = unit*(.013f + .004f*(i%3));
-            tint.a = .56f*wave;
+            float size = unit*(.016f + .003f*(i%3));
+            ink.a = .82f*wave;
+            light.a = .90f*wave;
             switch (motif)
             {
                 case Motif.Petal:
-                    Leaf(mesh,c,size*1.35f,t*135+i*23,tint,false);
+                    Leaf(mesh,c,size*1.35f,t*135+i*23,ink,false);
+                    Leaf(mesh,c,size*.77f,t*135+i*23,light,false);
                     break;
                 case Motif.Maple:
-                    Leaf(mesh,c,size*1.55f,t*155+i*31,tint,true);
+                    Leaf(mesh,c,size*1.55f,t*155+i*31,ink,true);
+                    Leaf(mesh,c,size*.84f,t*155+i*31,light,true);
                     break;
                 case Motif.Snow:
-                    for(int k=0;k<3;k++) Diamond(mesh,c,size,size*.14f,k*60+i*7+phase*7,tint);
+                    for(int k=0;k<3;k++)
+                    {
+                        float angle=k*60+i*7+phase*7;
+                        Diamond(mesh,c,size,size*.19f,angle,ink);
+                        Diamond(mesh,c,size*.70f,size*.075f,angle,light);
+                    }
                     break;
                 case Motif.Pond:
-                    if(i%4==0) Ripple(mesh,new Vector2(c.x,r.yMin+r.height*(.12f+.12f*(i%3))),unit*(.025f+.13f*t),tint);
-                    else Shine(mesh,c,size*(.55f+.5f*wave),tint);
+                    if(i%4==0)
+                    {
+                        float radius=unit*(.028f+.078f*t);
+                        Vector2 water=new(c.x,r.yMin+r.height*(.12f+.12f*(i%3)));
+                        Ripple(mesh,water,radius,ink);
+                        Ripple(mesh,water,radius*.69f,light);
+                    }
+                    else LitShine(mesh,c,size*(.62f+.56f*wave),ink,light);
                     break;
                 default:
                     c.y = r.yMin + r.height*(.12f + .76f*Mathf.Repeat(i*.713f,.99f) + .04f*wave);
-                    Shine(mesh,c,size*(.58f+1.45f*wave)*(marginLights ? .52f : 1),tint);
+                    LitShine(mesh,c,size*(.58f+1.30f*wave)*(marginLights ? .61f : 1),ink,light);
                     break;
             }
         }
+    }
+
+    static void LitShine(VertexHelper mesh,Vector2 center,float size,Color ink,Color light)
+    {
+        Shine(mesh,center,size,ink);
+        Shine(mesh,center,size*.53f,light);
     }
 
     static void Shine(VertexHelper m,Vector2 c,float size,Color tint)

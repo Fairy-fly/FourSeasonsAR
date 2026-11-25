@@ -34,7 +34,7 @@ public static class SpringPageReview
         camera.backgroundColor = new Color(.32f,.32f,.33f);
         camera.targetTexture = RenderTexture.GetTemporary(1080,2400,24);
         canvas.worldCamera = camera;
-        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.9-editor");
+        string folder = Path.GetFullPath("../reports/evidence/ui-2.0-rc.10-editor");
         Directory.CreateDirectory(folder);
         try
         {
@@ -428,8 +428,15 @@ public static class SpringPageReview
                 {
                     foreach(var a in air) a.Sample(i/12f);
                     Capture(camera,artFrames,"album-"+i.ToString("D3"));
+                    foreach(var effect in air)
+                    {
+                        var colors=effect.canvasRenderer.GetMesh()?.colors32;
+                        Check(colors!=null && colors.Length>0 &&
+                            System.Array.Exists(colors,c=>c.a>75 && Mathf.Min(c.r,Mathf.Min(c.g,c.b))<170) &&
+                            System.Array.Exists(colors,c=>c.a>75 && Mathf.Max(c.r,Mathf.Max(c.g,c.b))>226),
+                            "花册特效应同时有较深轮廓和明亮高光");
+                    }
                     var mesh=air[0].canvasRenderer.GetMesh();
-                    Check(mesh && mesh.vertexCount > 0,"春季常驻花瓣网格为空");
                     if(i==0) firstVertex=mesh.vertices[0];
                     if(i==12) Check((mesh.vertices[0]-firstVertex).sqrMagnitude>.01f,"春季花瓣没有移动");
                 }
