@@ -81,9 +81,9 @@ public sealed partial class FlowerCompanion
             case Kind.Summer: // Raise the lantern, look toward it, and float the free hand underneath.
                 Accent("Chest",Vector3.up,15*extend-7*follow);
                 Accent("Head",new Vector3(-.33f,.90f,.24f),22*extend-8*follow);
-                Accent("UpperArmR",new Vector3(-.83f,0,.56f),22*extend);
-                Accent("ForearmR",Vector3.right,-24*extend);
-                Accent("PalmR",new Vector3(.20f,1,-.28f),19*follow);
+                Accent("UpperArmR",new Vector3(-.83f,0,.56f),17*extend);
+                Accent("ForearmR",Vector3.right,-18*extend);
+                Accent("PalmR",new Vector3(.20f,1,-.28f),13*follow);
                 Accent("UpperArmL",Vector3.forward,-14*follow);
                 Accent("ForearmL",Vector3.right,-13*follow);
                 Accent("HemR",Vector3.right,-6*follow);
@@ -92,9 +92,9 @@ public sealed partial class FlowerCompanion
                 Accent("Hips",Vector3.up,-5*prepare+7*extend-6*follow);
                 Accent("Chest",new Vector3(.20f,1,-.19f),-14*prepare+25*extend-17*follow);
                 Accent("Head",Vector3.up,-14*extend+13*follow);
-                Accent("UpperArmL",Vector3.forward,-18*extend);
-                Accent("ForearmL",new Vector3(-.24f,.91f,-.25f),22*extend-9*follow);
-                Accent("PalmL",Vector3.forward,-19*follow);
+                Accent("UpperArmL",Vector3.forward,-14*extend);
+                Accent("ForearmL",new Vector3(-.24f,.91f,-.25f),17*extend-8*follow);
+                Accent("PalmL",Vector3.forward,-15*follow);
                 Accent("UpperArmR",new Vector3(-.43f,0,.90f),14*follow);
                 Accent("CurlR",Vector3.forward,-6*follow);
                 Accent("HemL",Vector3.forward,-9*extend+9*follow);

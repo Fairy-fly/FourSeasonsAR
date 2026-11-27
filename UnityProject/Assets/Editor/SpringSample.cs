@@ -20,6 +20,7 @@ public static class SpringSample
         SpringGaitReview.Run();
         HoverReview.Run();
         AutumnGestureReview.Run();
+        ClothRigReview.Run();
         CompanionActionReview.Run();
         SpringPageReview.Render();
         BuildApk();
@@ -91,7 +92,7 @@ public static class SpringSample
         }
         var shader = Resources.Load<Shader>("Gallery/FigureStudio");
         if (!shader || ShaderUtil.ShaderHasError(shader)) throw new BuildFailedException("花册着色器错误");
-        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-2.0-rc.10");
+        SpringBuild.Build(scene.path, "SeasonsFlowerJourney-2.0-rc.11");
     }
 
     public static void ConfigurePolish()
